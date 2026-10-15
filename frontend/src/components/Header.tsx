@@ -22,11 +22,17 @@ export default function Header() {
         </Link>
 
         <nav className="flex flex-wrap items-center gap-1" aria-label="Main">
+          <NavLink to="/categories" className={linkClass}>
+            Services
+          </NavLink>
+          <NavLink to="/search" className={linkClass}>
+            Search
+          </NavLink>
           {user ? (
             <>
-              {user.role === "admin" && (
-                <NavLink to="/admin" className={linkClass}>
-                  Admin
+              {user.role === "customer" && (
+                <NavLink to="/shortlist" className={linkClass}>
+                  Shortlist
                 </NavLink>
               )}
               {user.role === "vendor" && (
@@ -34,8 +40,13 @@ export default function Header() {
                   My business
                 </NavLink>
               )}
+              {user.role === "admin" && (
+                <NavLink to="/admin" className={linkClass}>
+                  Admin
+                </NavLink>
+              )}
               <NavLink to="/account" className={linkClass}>
-                My account
+                Account
               </NavLink>
               <button onClick={handleLogout} className="rounded-md px-3 py-2 text-sm text-stone-700 hover:text-maroon-700">
                 Log out

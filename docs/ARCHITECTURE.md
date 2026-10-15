@@ -107,6 +107,24 @@ channel. The owner signs up as a vendor and enters the code at `/vendor`. Claimi
 * Served by FastAPI static files with `X-Content-Type-Options: nosniff`.
 * Storage sits behind `MediaStorage` (`services/storage.py`); swap `LocalMediaStorage` for cloud storage later.
 
+## Customer marketplace (Phase 4)
+
+| Endpoint | Who | Notes |
+|---|---|---|
+| `GET /api/v1/vendors` | anyone | `q` matches business name, description, category name and active package names. `available_on=YYYY-MM-DD` returns only vendors who **declared** that date available; no entry means unknown, never "free". `min_price > max_price` → 400 |
+| `GET /api/v1/vendors/locations` | anyone | Distinct towns + service areas of listed vendors (for the location filter) |
+| `GET /api/v1/me/shortlist` | customer | Saved vendors that are still publicly listed |
+| `GET /api/v1/me/shortlist/ids` | customer | Vendor ids only (to show the Saved state on cards) |
+| `PUT /api/v1/me/shortlist/{vendor_id}` | customer | Idempotent add; only listed vendors |
+| `DELETE /api/v1/me/shortlist/{vendor_id}` | customer | Idempotent remove |
+
+Frontend routes: `/`, `/categories`, `/categories/:slug`, `/search`, `/vendors/:slug`, `/shortlist`, `/about`, `/contact`.
+All filters, sorting and pagination run on the server and are kept in the URL, so results can be shared.
+
+Honesty rules in the UI: no price → "Contact for pricing"; no declared availability → "Contact vendor to confirm
+availability"; no photos → a labelled "No photos yet" placeholder; "Verified" only when an admin set it; no ratings
+are shown until real reviews exist (Phase 5).
+
 ## Folder structure
 
 ```

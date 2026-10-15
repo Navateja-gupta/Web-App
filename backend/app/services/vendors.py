@@ -1,10 +1,10 @@
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, union
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,9 +14,10 @@ from app.core.security import hash_token
 from app.core.text import unique_slug
 from app.dependencies.pagination import PageParams
 from app.models.category import ServiceCategory
-from app.models.enums import ApprovalStatus, UserRole
+from app.models.enums import ApprovalStatus, AvailabilityStatus, UserRole
+from app.models.package import VendorPackage
 from app.models.user import User
-from app.models.vendor import Vendor
+from app.models.vendor import Vendor, VendorAvailability
 from app.schemas.vendor import AdminVendorUpdate, VendorCreate, VendorUpdate
 from app.services.audit import record_audit
 
@@ -69,6 +70,32 @@ def get_vendor_for_user(db: Session, user: User) -> Vendor | None:
     return db.scalar(_with_relations(select(Vendor).where(Vendor.user_id == user.id)))
 
 
+def get_public_vendor_by_id(db: Session, vendor_id: int) -> Vendor:
+    vendor = db.scalar(
+        _with_relations(select(Vendor).join(Vendor.category).where(Vendor.id == vendor_id, *PUBLIC_CONDITIONS))
+    )
+    if vendor is None:
+        raise NotFoundError("Vendor not found")
+    return vendor
+
+
+def public_locations(db: Session) -> list[str]:
+    """Towns and service areas of currently listed vendors (for the location filter)."""
+    towns = select(Vendor.location.label("name")).join(Vendor.category).where(*PUBLIC_CONDITIONS)
+    areas = (
+        select(func.unnest(Vendor.service_areas).label("name")).join(Vendor.category).where(*PUBLIC_CONDITIONS)
+    )
+    names = db.scalars(select(union(towns, areas).subquery().c.name)).all()
+    # De-duplicate case-insensitively; prefer the capitalised spelling ("Kamareddy" over "kamareddy").
+    unique: dict[str, str] = {}
+    for raw in names:
+        name = raw.strip()
+        current = unique.get(name.lower())
+        if current is None or (not current[:1].isupper() and name[:1].isupper()):
+            unique[name.lower()] = name
+    return sorted(unique.values(), key=str.lower)
+
+
 def get_public_vendor(db: Session, slug: str) -> Vendor:
     vendor = db.scalar(
         _with_relations(select(Vendor).join(Vendor.category).where(Vendor.slug == slug, *PUBLIC_CONDITIONS))
@@ -95,6 +122,7 @@ def list_public_vendors(
     location: str | None = None,
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
+    available_on: date | None = None,
     sort: VendorSort = "newest",
 ) -> tuple[list[Vendor], int]:
     stmt = select(Vendor).join(Vendor.category).where(*PUBLIC_CONDITIONS)
@@ -102,8 +130,27 @@ def list_public_vendors(
         stmt = stmt.where(ServiceCategory.slug == category_slug)
     if q and q.strip():
         term = q.strip()
+        # Also match services offered (active package names), e.g. "drone" or "veg meals".
+        matching_packages = select(VendorPackage.vendor_id).where(
+            VendorPackage.is_active.is_(True), VendorPackage.name.icontains(term, autoescape=True)
+        )
         stmt = stmt.where(
-            or_(Vendor.business_name.icontains(term, autoescape=True), Vendor.description.icontains(term, autoescape=True))
+            or_(
+                Vendor.business_name.icontains(term, autoescape=True),
+                Vendor.description.icontains(term, autoescape=True),
+                ServiceCategory.name.icontains(term, autoescape=True),
+                Vendor.id.in_(matching_packages),
+            )
+        )
+    if available_on is not None:
+        # Only vendors who have themselves declared the date available. No entry = unknown, not free.
+        stmt = stmt.where(
+            Vendor.id.in_(
+                select(VendorAvailability.vendor_id).where(
+                    VendorAvailability.date == available_on,
+                    VendorAvailability.availability_status == AvailabilityStatus.AVAILABLE,
+                )
+            )
         )
     if location and location.strip():
         term = location.strip()

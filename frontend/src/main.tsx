@@ -5,12 +5,15 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import "./index.css";
+import { ShortlistProvider } from "./shortlist/ShortlistContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <ShortlistProvider>
+          <App />
+        </ShortlistProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

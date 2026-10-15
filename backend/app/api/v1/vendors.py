@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.v1.presenters import portfolio_read, vendor_public
+from app.core.errors import BusinessRuleError
 from app.db.session import get_db
 from app.dependencies.pagination import PageParams, get_page_params
 from app.schemas.common import Page
@@ -30,16 +31,25 @@ def list_vendors(
     location: str | None = Query(default=None, max_length=100, description="Town or service area"),
     min_price: Decimal | None = Query(default=None, ge=0),
     max_price: Decimal | None = Query(default=None, ge=0),
+    available_on: date | None = Query(default=None, description="Only vendors who declared this date available"),
     sort: VendorSort = "newest",
     params: PageParams = Depends(get_page_params),
     db: Session = Depends(get_db),
     storage: MediaStorage = Depends(get_storage),
 ) -> Page[VendorPublic]:
+    if min_price is not None and max_price is not None and min_price > max_price:
+        raise BusinessRuleError("Minimum price cannot be more than maximum price")
     items, total = vendor_service.list_public_vendors(
         db, params, category_slug=category, q=q, location=location,
-        min_price=min_price, max_price=max_price, sort=sort,
+        min_price=min_price, max_price=max_price, available_on=available_on, sort=sort,
     )
     return Page[VendorPublic].build([vendor_public(v, storage) for v in items], total, params.page, params.size)
+
+
+@router.get("/locations", response_model=list[str])
+def list_locations(db: Session = Depends(get_db)) -> list[str]:
+    """Towns and service areas covered by listed vendors."""
+    return vendor_service.public_locations(db)
 
 
 @router.get("/{slug}", response_model=VendorPublic)
