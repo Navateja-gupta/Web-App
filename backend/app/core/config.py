@@ -52,6 +52,29 @@ class Settings(BaseSettings):
     # --- Vendor onboarding ---
     CLAIM_CODE_EXPIRE_DAYS: int = 7
 
+    # --- Email notifications (SMTP, e.g. Gmail with an app password) ---
+    EMAIL_ENABLED: bool = False
+    # Background sender thread; disabled by the test suite so tests never send real email.
+    EMAIL_WORKER_ENABLED: bool = True
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = ""
+    EMAIL_FROM_NAME: str = "Kamareddy Wedding Services"
+    EMAIL_POLL_SECONDS: int = 15
+    EMAIL_MAX_ATTEMPTS: int = 5
+    # Where links in emails point to.
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.SMTP_HOST and self.SMTP_USERNAME and self.SMTP_PASSWORD)
+
+    @property
+    def email_from_address(self) -> str:
+        return self.EMAIL_FROM or self.SMTP_USERNAME
+
     @property
     def max_upload_bytes(self) -> int:
         return self.MAX_UPLOAD_MB * 1024 * 1024

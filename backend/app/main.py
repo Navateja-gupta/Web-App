@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,15 +10,33 @@ from fastapi.staticfiles import StaticFiles
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.errors import AppError
+from app.services.email_sender import OutboxWorker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("app")
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    worker = None
+    if settings.EMAIL_ENABLED and settings.EMAIL_WORKER_ENABLED:
+        if settings.email_configured:
+            worker = OutboxWorker(settings.EMAIL_POLL_SECONDS)
+            worker.start()
+        else:
+            logger.warning("EMAIL_ENABLED is true but SMTP_USERNAME/SMTP_PASSWORD are missing; emails will wait in the outbox.")
+    try:
+        yield
+    finally:
+        if worker is not None:
+            worker.stop()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
-        version="1.0.0",
+        version="1.1.0",
+        lifespan=lifespan,
         openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",

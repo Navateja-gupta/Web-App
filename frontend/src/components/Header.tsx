@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import NotificationBell from "../notifications/NotificationBell";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm ${isActive ? "bg-maroon-50 text-maroon-800" : "text-stone-700 hover:text-maroon-700"}`;
@@ -53,6 +54,7 @@ export default function Header() {
               <NavLink to="/account" className={linkClass}>
                 Account
               </NavLink>
+              <NotificationBell />
               <button onClick={handleLogout} className="rounded-md px-3 py-2 text-sm text-stone-700 hover:text-maroon-700">
                 Log out
               </button>

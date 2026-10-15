@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import Alert from "../components/Alert";
@@ -40,6 +41,44 @@ function ProfileForm({ user, onSaved }: { user: User; onSaved: (u: User) => void
         Save profile
       </Button>
     </form>
+  );
+}
+
+function EmailPreference({ user, onSaved }: { user: User; onSaved: (u: User) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(enabled: boolean) {
+    setSaving(true);
+    setError(null);
+    try {
+      onSaved((await api.patch<User>("/auth/me", { email_notifications: enabled })).data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {error && <Alert kind="error">{error}</Alert>}
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={user.email_notifications}
+          disabled={saving}
+          onChange={(e) => toggle(e.target.checked)}
+        />
+        <span>
+          <span className="block font-medium">Email me about important updates</span>
+          <span className="block text-sm text-stone-600">
+            New enquiries, quotations and booking changes are sent to {user.email}. Notifications in the app (the bell icon) are always on.
+          </span>
+        </span>
+      </label>
+    </div>
   );
 }
 
@@ -106,12 +145,23 @@ export default function AccountPage() {
       </div>
 
       {user.role === "vendor" && (
-        <Alert kind="info">Business profile setup will appear here in the next update.</Alert>
+        <Alert kind="info">
+          Manage your business profile, enquiries and bookings under{" "}
+          <Link to="/vendor" className="underline">
+            My business
+          </Link>
+          .
+        </Alert>
       )}
 
       <div className="rounded-xl border border-maroon-100 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Profile</h2>
         <ProfileForm user={user} onSaved={setUser} />
+      </div>
+
+      <div className="rounded-xl border border-maroon-100 bg-white p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-semibold">Notifications</h2>
+        <EmailPreference user={user} onSaved={setUser} />
       </div>
 
       <div className="rounded-xl border border-maroon-100 bg-white p-6 shadow-sm">

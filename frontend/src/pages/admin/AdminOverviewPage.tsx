@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Alert from "../../components/Alert";
 import Spinner from "../../components/Spinner";
 import StatCard from "../../components/StatCard";
+import EmailStatusCard from "../../features/admin/EmailStatusCard";
 import { api, getErrorMessage } from "../../lib/api";
 import { APPROVAL_LABEL, BOOKING_LABEL, ENQUIRY_LABEL, formatINR } from "../../lib/format";
 import type { ApprovalStatus, BookingStatus, EnquiryStatus } from "../../types";
@@ -74,6 +75,7 @@ export default function AdminOverviewPage() {
         <StatCard label="Published reviews" value={stats.reviews_visible} to="/admin/reviews" />
         <StatCard label="Vendor accounts" value={stats.users_by_role.vendor} />
       </div>
+      <EmailStatusCard />
       <div className="grid gap-6 lg:grid-cols-3">
         <Breakdown title="Vendors" data={stats.vendors_by_status} labels={APPROVAL_LABEL} />
         <Breakdown title="Enquiries" data={stats.enquiries_by_status} labels={ENQUIRY_LABEL} />

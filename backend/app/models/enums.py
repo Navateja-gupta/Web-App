@@ -76,6 +76,14 @@ class ReportStatus(str, enum.Enum):
     DISMISSED = "dismissed"
 
 
+class EmailStatus(str, enum.Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    # Queued while email sending was turned off; never sent.
+    SKIPPED = "skipped"
+
+
 class BookingStatus(str, enum.Enum):
     REQUESTED = "requested"
     CONFIRMED = "confirmed"

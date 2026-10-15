@@ -20,6 +20,7 @@ from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.wedding_plan import WeddingPlan, WeddingPlanItem
 from app.schemas.booking import BookingCreate
+from app.services import notify_events
 from app.services.audit import record_audit
 from app.services.vendors import get_public_vendor_by_id
 
@@ -112,6 +113,7 @@ def create_booking(db: Session, customer: User, data: BookingCreate) -> Booking:
     db.flush()
     record_audit(db, actor_id=customer.id, action="booking.requested", entity_type="booking", entity_id=booking.id,
                  details={"vendor_id": vendor.id})
+    notify_events.booking_requested(db, booking, vendor, customer)
     db.commit()
     return get_booking(db, booking.id)
 
@@ -169,5 +171,6 @@ def change_status(
     booking.booking_status = target
     record_audit(db, actor_id=actor.id, action=f"booking.{target.value}", entity_type="booking", entity_id=booking.id,
                  details={"from": previous.value, "to": target.value, "reason": reason})
+    notify_events.booking_status_changed(db, booking, actor)
     db.commit()
     return get_booking(db, booking.id)

@@ -19,6 +19,8 @@ class User(TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = enum_column(UserRole, "user_role", index=True)
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
+    # User's choice to receive email alerts (in-app notifications are always on).
+    email_notifications: Mapped[bool] = mapped_column(default=True, server_default=true())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Access tokens issued before this moment are rejected (password change, deactivation).
     tokens_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

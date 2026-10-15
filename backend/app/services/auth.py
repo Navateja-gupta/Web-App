@@ -152,6 +152,8 @@ def update_profile(db: Session, user: User, data: UserUpdate) -> User:
     changes = data.model_dump(exclude_unset=True)
     if "full_name" in changes and changes["full_name"] is None:
         raise BusinessRuleError("Name cannot be empty")
+    if "email_notifications" in changes and changes["email_notifications"] is None:
+        changes.pop("email_notifications")
     new_phone = changes.get("phone")
     if new_phone and new_phone != user.phone:
         if db.scalar(select(User.id).where(User.phone == new_phone, User.id != user.id)):

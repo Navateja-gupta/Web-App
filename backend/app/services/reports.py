@@ -11,6 +11,7 @@ from app.models.report import Report
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.schemas.report import ReportCreate, ReportResolve
+from app.services import notify_events
 from app.services.audit import record_audit
 from app.services.vendors import get_public_vendor_by_id
 
@@ -38,6 +39,7 @@ def create_report(db: Session, reporter: User, data: ReportCreate) -> Report:
     db.add(report)
     db.flush()
     record_audit(db, actor_id=reporter.id, action="report.created", entity_type="report", entity_id=report.id)
+    notify_events.report_created(db, "a vendor listing" if data.vendor_id is not None else "a review")
     db.commit()
     return report
 

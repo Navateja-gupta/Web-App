@@ -1,5 +1,6 @@
 import { AxiosError } from "axios";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import Alert from "../../components/Alert";
 import Button from "../../components/Button";
@@ -77,7 +78,11 @@ const SECTIONS = [
 ];
 
 export default function VendorDashboardPage() {
-  const [section, setSection] = useState<Section>("enquiries");
+  // The section lives in the URL (?tab=bookings) so notification links open the right tab.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("tab");
+  const section: Section = SECTIONS.some((s) => s.id === requested) ? (requested as Section) : "enquiries";
+  const setSection = (id: Section) => setParams({ tab: id }, { replace: true });
   const [vendor, setVendor] = useState<VendorOwner | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none" | "error">("loading");
   const [error, setError] = useState<string | null>(null);

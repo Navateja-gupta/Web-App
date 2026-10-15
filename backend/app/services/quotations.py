@@ -18,6 +18,7 @@ from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.wedding_plan import WeddingPlan
 from app.schemas.quotation import QuotationCreate, QuotationRequestCreate
+from app.services import notify_events
 from app.services.audit import record_audit
 from app.services.vendors import get_public_vendor_by_id
 
@@ -106,6 +107,7 @@ def create_requests(db: Session, customer: User, data: QuotationRequestCreate) -
         db.flush()
         record_audit(db, actor_id=customer.id, action="quotation_request.created", entity_type="quotation_request",
                      entity_id=request.id, details={"vendor_id": vendor.id})
+        notify_events.enquiry_created(db, request, vendor, customer)
         created.append(request.id)
     db.commit()
     return list(db.scalars(_request_query().where(QuotationRequest.id.in_(created)).order_by(QuotationRequest.id)))
@@ -177,7 +179,7 @@ def accept_quotation(db: Session, customer: User, quotation_id: int) -> Booking:
     if request.service_date < date.today():
         raise BusinessRuleError("The event date has already passed")
     try:
-        get_public_vendor_by_id(db, quotation.vendor_id)
+        vendor = get_public_vendor_by_id(db, quotation.vendor_id)
     except NotFoundError:
         raise BusinessRuleError("This vendor is not currently accepting bookings on the platform")
 
@@ -207,6 +209,7 @@ def accept_quotation(db: Session, customer: User, quotation_id: int) -> Booking:
     record_audit(db, actor_id=customer.id, action="quotation.accepted", entity_type="quotation", entity_id=quotation.id)
     record_audit(db, actor_id=customer.id, action="booking.requested", entity_type="booking", entity_id=booking.id,
                  details={"vendor_id": booking.vendor_id, "from_quotation": quotation.id})
+    notify_events.booking_requested(db, booking, vendor, customer)
     db.commit()  # all of the above succeed or fail together
     return booking
 
@@ -259,6 +262,7 @@ def decline_enquiry(db: Session, vendor: Vendor, actor: User, request_id: int, r
     )
     record_audit(db, actor_id=actor.id, action="quotation_request.declined", entity_type="quotation_request",
                  entity_id=request.id)
+    notify_events.enquiry_declined(db, request, vendor)
     db.commit()
     return get_vendor_enquiry(db, vendor, request.id)
 
@@ -282,6 +286,7 @@ def send_quotation(db: Session, vendor: Vendor, actor: User, request_id: int, da
     db.flush()
     record_audit(db, actor_id=actor.id, action="quotation.sent", entity_type="quotation", entity_id=quotation.id,
                  details={"quotation_request_id": request.id})
+    notify_events.quotation_received(db, request, quotation, vendor)
     db.commit()
     return get_vendor_enquiry(db, vendor, request.id)
 

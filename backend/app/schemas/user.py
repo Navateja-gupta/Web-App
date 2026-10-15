@@ -66,6 +66,7 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=120)
     phone: str | None = None
+    email_notifications: bool | None = None
 
     _clean_name = field_validator("full_name")(lambda v: clean_name(v) if v is not None else v)
     _normalize_phone = field_validator("phone")(normalize_phone)
@@ -87,6 +88,7 @@ class UserRead(BaseModel):
     phone: str | None
     role: UserRole
     is_active: bool
+    email_notifications: bool
     created_at: datetime
 
 

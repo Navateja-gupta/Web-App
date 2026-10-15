@@ -27,6 +27,37 @@ the owner; they sign up as a vendor and enter it on *My business*.
 **Customer journey** — Save vendors → *Request quotations* → vendors reply → *Compare quotations* → Accept →
 vendor confirms the booking → after the event the vendor marks it completed → customer leaves a review.
 
+## Notifications
+
+Everyone gets in-app notifications (the bell icon in the header). Emails are optional.
+
+| Event | Notified |
+|---|---|
+| New enquiry | Vendor (admins, if the vendor has no login yet) |
+| Quotation received | Customer |
+| Booking requested (quotation accepted or direct request) | Vendor (or admins) |
+| Booking confirmed / not accepted | Customer |
+| Booking cancelled | The other party (both, if an admin cancelled) |
+| Vendor registered / resubmitted | Admins |
+| Vendor approved / rejected / suspended | Vendor |
+| Enquiry declined, booking completed, new complaint | In-app only |
+
+**Turn on email (Gmail)**
+
+1. On the Google account that will send emails, turn on 2-Step Verification.
+2. Create an app password at https://myaccount.google.com/apppasswords.
+3. In `backend\.env` set:
+   ```
+   EMAIL_ENABLED=true
+   SMTP_USERNAME=your.address@gmail.com
+   SMTP_PASSWORD=the 16-character app password
+   ```
+4. Restart the API, then use **Admin → Overview → Send test email to me**.
+
+Emails are queued in the database and sent in the background (retried up to 5 times), so a slow or failing
+mail server never breaks the website. Users can switch emails off under **Account → Notifications**.
+Gmail allows roughly 500 emails a day; use a transactional email service when you outgrow that.
+
 ## Running every day
 
 Two PowerShell windows:

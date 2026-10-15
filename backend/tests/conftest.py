@@ -20,6 +20,11 @@ from tests.factories import DEFAULT_PASSWORD
 
 API = settings.API_V1_PREFIX
 
+# Never send real email from tests, whatever backend/.env says. Tests that need queued
+# (pending) emails switch EMAIL_ENABLED on themselves and use a fake sender.
+settings.EMAIL_ENABLED = False
+settings.EMAIL_WORKER_ENABLED = False
+
 
 def _safe_test_database_url() -> str:
     """Return TEST_DATABASE_URL, refusing anything that could be the dev database."""

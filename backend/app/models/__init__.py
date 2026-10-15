@@ -3,6 +3,7 @@
 from app.models.audit import AuditLog
 from app.models.booking import Booking, Review
 from app.models.category import ServiceCategory
+from app.models.notification import EmailOutbox, Notification
 from app.models.package import VendorPackage
 from app.models.quotation import Quotation, QuotationRequest
 from app.models.report import Report
@@ -15,6 +16,8 @@ __all__ = [
     "AuditLog",
     "Booking",
     "CustomerShortlist",
+    "EmailOutbox",
+    "Notification",
     "Quotation",
     "QuotationRequest",
     "RefreshToken",

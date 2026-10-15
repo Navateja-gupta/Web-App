@@ -29,6 +29,7 @@ import WeddingPlansPage from "./pages/customer/WeddingPlansPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import AboutPage from "./pages/public/AboutPage";
 import CategoriesPage from "./pages/public/CategoriesPage";
 import CategoryPage from "./pages/public/CategoryPage";
@@ -85,6 +86,15 @@ export default function App() {
             <Route path="/quotations" element={<QuotationsPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
           </Route>
+
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Account settings: every role */}
           <Route

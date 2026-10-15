@@ -20,6 +20,7 @@ from app.models.package import VendorPackage
 from app.models.user import User
 from app.models.vendor import Vendor, VendorAvailability
 from app.schemas.vendor import AdminVendorUpdate, VendorCreate, VendorUpdate
+from app.services import notify_events
 from app.services.audit import record_audit
 
 VendorSort = Literal["newest", "price_low", "price_high", "name", "rating"]
@@ -270,6 +271,8 @@ def create_vendor(db: Session, data: VendorCreate, *, owner: User | None, actor:
 
     record_audit(db, actor_id=actor.id, action="vendor.created", entity_type="vendor", entity_id=vendor.id,
                  details={"by_admin": actor.role == UserRole.ADMIN, "category_id": vendor.category_id})
+    if actor.role != UserRole.ADMIN:
+        notify_events.vendor_needs_review(db, vendor, resubmitted=False)
     db.commit()
     return get_vendor(db, vendor.id)
 
@@ -307,6 +310,10 @@ def update_vendor(db: Session, vendor: Vendor, data: VendorUpdate | AdminVendorU
 
     record_audit(db, actor_id=actor.id, action="vendor.updated", entity_type="vendor", entity_id=vendor.id,
                  details={"fields": sorted(changes), "status_change": status_change})
+    if status_change is not None:
+        db.flush()
+        db.refresh(vendor, ["category"])
+        notify_events.vendor_needs_review(db, vendor, resubmitted=True)
     db.commit()
     return get_vendor(db, vendor.id)
 
@@ -332,6 +339,7 @@ def change_approval(db: Session, vendor: Vendor, action: str, admin: User, reaso
 
     record_audit(db, actor_id=admin.id, action=audit_action, entity_type="vendor", entity_id=vendor.id,
                  details={"from": previous.value, "to": target.value, "reason": reason})
+    notify_events.vendor_decision(db, vendor)
     db.commit()
     return get_vendor(db, vendor.id)
 

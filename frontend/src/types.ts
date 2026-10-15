@@ -7,6 +7,17 @@ export interface User {
   phone: string | null;
   role: Role;
   is_active: boolean;
+  email_notifications: boolean;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: number;
+  kind: string;
+  title: string;
+  body: string;
+  link: string | null;
+  is_read: boolean;
   created_at: string;
 }
 
