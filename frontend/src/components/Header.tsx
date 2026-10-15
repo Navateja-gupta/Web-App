@@ -25,8 +25,13 @@ export default function Header() {
           {user ? (
             <>
               {user.role === "admin" && (
-                <NavLink to="/admin/users" className={linkClass}>
-                  Users
+                <NavLink to="/admin" className={linkClass}>
+                  Admin
+                </NavLink>
+              )}
+              {user.role === "vendor" && (
+                <NavLink to="/vendor" className={linkClass}>
+                  My business
                 </NavLink>
               )}
               <NavLink to="/account" className={linkClass}>

@@ -20,3 +20,6 @@ PyJWT==2.10.1
 # Testing
 pytest==8.3.5
 httpx==0.28.1
+
+# Image validation / re-encoding for portfolio uploads
+Pillow==11.2.1

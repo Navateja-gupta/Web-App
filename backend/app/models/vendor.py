@@ -70,10 +70,16 @@ class Vendor(TimestampMixin, Base):
         index=True,
     )
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true())
-    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    # Reason shown to the vendor when rejected or suspended.
+    status_reason: Mapped[str | None] = mapped_column(Text)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    # One-time code that lets a vendor link an admin-created profile to their account.
+    # Only the SHA-256 hash is stored.
+    claim_code_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    claim_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Verification = admin has checked identity/business documents. Never fabricated.
     is_verified: Mapped[bool] = mapped_column(default=False, server_default=false())

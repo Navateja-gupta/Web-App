@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -15,7 +16,7 @@ logger = logging.getLogger("app")
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
-        version="0.2.0",
+        version="0.3.0",
         openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",
@@ -41,7 +42,18 @@ def create_app() -> FastAPI:
         logger.exception("Unhandled error on %s %s", request.method, request.url.path)
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+        response = await call_next(request)
+        # Browsers must not guess content types (uploaded files are served as what they are).
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    # Local media (vendor portfolio images). Replace with object storage/CDN in the cloud.
+    settings.MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    app.mount(settings.MEDIA_URL_PATH, StaticFiles(directory=settings.MEDIA_ROOT), name="media")
     return app
 
 

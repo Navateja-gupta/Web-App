@@ -58,6 +58,55 @@ Tokens are never placed in `localStorage`. The frontend only shows/hides UI by r
 * Packages must have a price unless `pricing_type = quote_on_request`; `price_max` (range) must be ≥ `price`.
 * Customer-owned history (bookings, enquiries, reviews) uses `ON DELETE RESTRICT`: users are deactivated, not deleted.
 
+## Categories & vendor management (Phase 3)
+
+### Who can do what
+
+| Path prefix | Who | Purpose |
+|---|---|---|
+| `/api/v1/categories` | anyone | Active categories with live vendor counts; `/{slug}` for one |
+| `/api/v1/vendors` | anyone | Approved + active vendors in active categories only. Filters: `category`, `q`, `location` (town or service area), `min_price`, `max_price`, `sort` (`newest`, `price_low`, `price_high`, `name`), `page`, `size`. `/{slug}`, `/{slug}/packages`, `/{slug}/portfolio`, `/{slug}/availability` |
+| `/api/v1/me/vendor` | vendor | Create/read/update **own** profile; `/claim` to link an admin-created profile |
+| `/api/v1/admin/categories` | admin | List all, create, edit, activate/deactivate, delete (only if unused) |
+| `/api/v1/admin/vendors` | admin | List/search/filter, `status-counts`, create on behalf, edit, `approve`, `reject`, `suspend`, `verification`, `claim-code` |
+
+Packages (`/packages`), photos (`/portfolio`) and availability (`/availability/{date}`) are mounted under both
+`/me/vendor` and `/admin/vendors/{id}` from one router (`api/v1/vendor_resources.py`). Every lookup is scoped to
+the resolved vendor, so a vendor guessing another vendor's package/photo id gets `404`.
+
+### Approval workflow
+
+```
+            approve                 suspend
+ pending ─────────────► approved ─────────────► suspended
+    │                     ▲   ▲                     │
+    │ reject (reason)     │   └──── approve ────────┘
+    ▼                     │        (reinstate)
+ rejected ── approve ─────┘
+    │
+    └── vendor edits profile ──► pending (resubmitted)
+```
+
+* New profiles (self-registered or admin-created) always start as `pending`.
+* `is_active` is a separate on/off switch controlled by admins; approval is kept when deactivated.
+* An approved vendor who changes category goes back to `pending`.
+* Every transition is written to `audit_logs` with the reason.
+
+### Admin-created profiles and ownership
+
+Admins can create a profile with no linked account. To hand it over, the admin generates a one-time claim
+code (10 characters, valid 7 days, only its SHA-256 hash stored) and gives it to the owner through a verified
+channel. The owner signs up as a vendor and enters the code at `/vendor`. Claiming is rate-limited.
+
+### Uploads
+
+* Only JPEG, PNG and WebP, max 5 MB, max 30 photos per vendor (configurable).
+* The file type is decided by decoding the image with Pillow, not by its name or Content-Type.
+* Every image is re-encoded: EXIF/GPS metadata and anything hidden in the file are dropped.
+* Stored under `backend/media/portfolio/{vendor_id}/{random}.{ext}`; the uploaded filename is never used.
+* Served by FastAPI static files with `X-Content-Type-Options: nosniff`.
+* Storage sits behind `MediaStorage` (`services/storage.py`); swap `LocalMediaStorage` for cloud storage later.
+
 ## Folder structure
 
 ```

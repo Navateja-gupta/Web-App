@@ -1,4 +1,5 @@
 from collections.abc import Callable, Generator
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -14,6 +15,7 @@ from app.core.rate_limit import reset_all_limiters
 from app.db.session import get_db
 from app.main import app
 from app.models.user import User
+from app.services.storage import LocalMediaStorage, get_storage
 from tests.factories import DEFAULT_PASSWORD
 
 API = settings.API_V1_PREFIX
@@ -77,6 +79,15 @@ def _reset_rate_limits() -> Generator[None, None, None]:
     reset_all_limiters()
 
 
+@pytest.fixture(autouse=True)
+def media_storage(tmp_path: Path) -> Generator[LocalMediaStorage, None, None]:
+    """Uploads go to a per-test temporary folder, never to backend/media."""
+    storage = LocalMediaStorage(tmp_path / "media", "http://testserver/media")
+    app.dependency_overrides[get_storage] = lambda: storage
+    yield storage
+    app.dependency_overrides.pop(get_storage, None)
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     """HTTP client for endpoints that do not touch the database."""
@@ -93,7 +104,7 @@ def app_with_db(db_session: Session) -> Generator[FastAPI, None, None]:
     try:
         yield app
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture

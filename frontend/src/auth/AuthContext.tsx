@@ -74,5 +74,7 @@ export function useAuth(): AuthContextValue {
 
 /** Where each role lands after logging in. */
 export function homePathFor(role: Role): string {
-  return role === "admin" ? "/admin/users" : "/account";
+  if (role === "admin") return "/admin/vendors";
+  if (role === "vendor") return "/vendor";
+  return "/account";
 }

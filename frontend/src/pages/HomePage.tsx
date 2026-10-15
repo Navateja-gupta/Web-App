@@ -1,59 +1,53 @@
 import { useEffect, useState } from "react";
 
+import Alert from "../components/Alert";
+import Spinner from "../components/Spinner";
 import { api, getErrorMessage } from "../lib/api";
-
-type CheckState = { status: "loading" } | { status: "ok"; label: string } | { status: "error"; message: string };
-
-function useHealthCheck(path: string, okLabel: string): CheckState {
-  const [state, setState] = useState<CheckState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get(path)
-      .then(() => !cancelled && setState({ status: "ok", label: okLabel }))
-      .catch((err) => !cancelled && setState({ status: "error", message: getErrorMessage(err) }));
-    return () => {
-      cancelled = true;
-    };
-  }, [path, okLabel]);
-
-  return state;
-}
-
-function StatusRow({ name, state }: { name: string; state: CheckState }) {
-  const styles = {
-    loading: "bg-stone-100 text-stone-600",
-    ok: "bg-green-100 text-green-800",
-    error: "bg-red-100 text-red-800",
-  }[state.status];
-  const text = state.status === "loading" ? "Checking…" : state.status === "ok" ? state.label : state.message;
-
-  return (
-    <li className="flex items-center justify-between gap-4 py-3">
-      <span className="font-medium">{name}</span>
-      <span className={`rounded-full px-3 py-1 text-sm ${styles}`}>{text}</span>
-    </li>
-  );
-}
+import type { Category } from "../types";
 
 export default function HomePage() {
-  const apiStatus = useHealthCheck("/health", "Running");
-  const dbStatus = useHealthCheck("/health/db", "Connected");
+  const [categories, setCategories] = useState<Category[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<Category[]>("/categories")
+      .then((res) => setCategories(res.data))
+      .catch((err) => setError(getErrorMessage(err)));
+  }, []);
 
   return (
-    <section className="mx-auto max-w-xl">
-      <h1 className="font-display text-3xl font-semibold text-maroon-800">All your wedding services in one place</h1>
-      <p className="mt-3 text-stone-600">
-        The marketplace is being set up. This page shows whether the frontend can reach the backend and database.
-      </p>
+    <section className="space-y-10">
+      <div className="max-w-2xl">
+        <h1 className="font-display text-4xl font-semibold text-maroon-800">All your wedding services in one place</h1>
+        <p className="mt-3 text-lg text-stone-600">
+          Find photographers, decorators, caterers, DJs and more in Kamareddy. Compare packages and request quotations from one platform.
+        </p>
+      </div>
 
-      <div className="mt-8 rounded-xl border border-maroon-100 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">System status</h2>
-        <ul className="mt-2 divide-y divide-stone-100" aria-live="polite">
-          <StatusRow name="Backend API" state={apiStatus} />
-          <StatusRow name="Database" state={dbStatus} />
-        </ul>
+      <div>
+        <h2 className="mb-4 text-xl font-semibold">Browse services</h2>
+        {error ? (
+          <Alert kind="error">{error}</Alert>
+        ) : !categories ? (
+          <Spinner />
+        ) : categories.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
+            Service categories will appear here soon.
+          </p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {categories.map((c) => (
+              <li key={c.id} className="rounded-xl border border-maroon-100 bg-white p-5 shadow-sm">
+                {c.icon && <div className="text-3xl" aria-hidden>{c.icon}</div>}
+                <p className="mt-2 font-semibold text-maroon-800">{c.name}</p>
+                <p className="text-sm text-stone-600">
+                  {c.vendor_count === 0 ? "Vendors coming soon" : `${c.vendor_count} ${c.vendor_count === 1 ? "vendor" : "vendors"}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

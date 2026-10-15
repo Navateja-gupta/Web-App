@@ -41,6 +41,21 @@ class Settings(BaseSettings):
     REGISTER_RATE_LIMIT: int = 10
     REGISTER_RATE_WINDOW_SECONDS: int = 3600
 
+    # --- Media uploads ---
+    # Base URL the browser uses to reach this API (used to build image URLs).
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+    MEDIA_ROOT: Path = BACKEND_DIR / "media"
+    MEDIA_URL_PATH: str = "/media"
+    MAX_UPLOAD_MB: int = 5
+    MAX_PORTFOLIO_ITEMS: int = 30
+
+    # --- Vendor onboarding ---
+    CLAIM_CODE_EXPIRE_DAYS: int = 7
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.MAX_UPLOAD_MB * 1024 * 1024
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
