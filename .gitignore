@@ -1,0 +1,30 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---------- Secrets / environment ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Node / frontend ----------
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ---------- Local media uploads (vendor portfolios) ----------
+backend/media/
+
+# ---------- Logs / OS / IDE ----------
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

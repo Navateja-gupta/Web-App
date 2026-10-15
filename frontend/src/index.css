@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Wedding-inspired palette: deep maroon, marigold gold, warm ivory. */
+@theme {
+  --color-maroon-50: #fdf2f3;
+  --color-maroon-100: #fbe4e6;
+  --color-maroon-600: #9f1d35;
+  --color-maroon-700: #861629;
+  --color-maroon-800: #6e1324;
+  --color-gold-400: #e5b544;
+  --color-gold-500: #d49b1c;
+  --color-ivory: #fffaf2;
+
+  --font-display: "Georgia", "Times New Roman", serif;
+}
+
+body {
+  background-color: var(--color-ivory);
+  color: #2b2118;
+}
