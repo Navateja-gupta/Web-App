@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { startingPriceLabel } from "../lib/format";
+import { ratingLabel, startingPriceLabel } from "../lib/format";
 import type { VendorPublic } from "../types";
 import ShortlistButton from "./ShortlistButton";
 import { Badge } from "./StatusBadge";
@@ -24,6 +24,9 @@ export default function VendorCard({ vendor }: { vendor: VendorPublic }) {
         <p className="text-sm text-stone-600">
           {vendor.category.name} · {vendor.location}
         </p>
+        {ratingLabel(vendor.rating_average, vendor.review_count) && (
+          <p className="text-sm text-stone-700">{ratingLabel(vendor.rating_average, vendor.review_count)}</p>
+        )}
         <div className="mt-auto flex items-center justify-between pt-2">
           <span className="text-sm font-medium text-maroon-800">{startingPriceLabel(vendor.starting_price)}</span>
           {vendor.is_verified && <Badge tone="blue">Verified</Badge>}

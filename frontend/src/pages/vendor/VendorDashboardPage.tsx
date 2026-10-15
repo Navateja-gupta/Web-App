@@ -6,6 +6,9 @@ import Button from "../../components/Button";
 import FormField from "../../components/FormField";
 import Spinner from "../../components/Spinner";
 import { ApprovalBadge, Badge } from "../../components/StatusBadge";
+import Tabs from "../../components/Tabs";
+import VendorBookings from "../../features/vendor/VendorBookings";
+import VendorEnquiries from "../../features/vendor/VendorEnquiries";
 import VendorManageTabs from "../../features/vendor/VendorManageTabs";
 import VendorProfileForm from "../../features/vendor/VendorProfileForm";
 import { api, getErrorMessage } from "../../lib/api";
@@ -66,7 +69,15 @@ function ClaimForm({ onClaimed }: { onClaimed: (v: VendorOwner) => void }) {
   );
 }
 
+type Section = "enquiries" | "bookings" | "profile";
+const SECTIONS = [
+  { id: "enquiries" as const, label: "Enquiries" },
+  { id: "bookings" as const, label: "Bookings" },
+  { id: "profile" as const, label: "Business profile" },
+];
+
 export default function VendorDashboardPage() {
+  const [section, setSection] = useState<Section>("enquiries");
   const [vendor, setVendor] = useState<VendorOwner | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -131,13 +142,18 @@ export default function VendorDashboardPage() {
         <span className="text-sm text-stone-500">{vendor.category.name}</span>
       </div>
       <StatusBanner vendor={vendor} />
-      <VendorManageTabs
-        vendor={vendor}
-        basePath={BASE}
-        onSaveProfile={async (input) => {
-          setVendor((await api.patch<VendorOwner>(BASE, input)).data);
-        }}
-      />
+      <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
+      {section === "enquiries" && <VendorEnquiries />}
+      {section === "bookings" && <VendorBookings />}
+      {section === "profile" && (
+        <VendorManageTabs
+          vendor={vendor}
+          basePath={BASE}
+          onSaveProfile={async (input) => {
+            setVendor((await api.patch<VendorOwner>(BASE, input)).data);
+          }}
+        />
+      )}
     </section>
   );
 }

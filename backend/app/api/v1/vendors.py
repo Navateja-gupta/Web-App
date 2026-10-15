@@ -6,17 +6,19 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.v1.presenters import portfolio_read, vendor_public
+from app.api.v1.presenters import portfolio_read, vendor_public, vendors_public
 from app.core.errors import BusinessRuleError
 from app.db.session import get_db
 from app.dependencies.pagination import PageParams, get_page_params
 from app.schemas.common import Page
 from app.schemas.package import PackageRead
 from app.schemas.portfolio import AvailabilityRead, PortfolioRead
+from app.schemas.review import ReviewPublic, VendorReviews
 from app.schemas.vendor import VendorPublic
 from app.services import availability as availability_service
 from app.services import packages as package_service
 from app.services import portfolio as portfolio_service
+from app.services import reviews as review_service
 from app.services import vendors as vendor_service
 from app.services.storage import MediaStorage, get_storage
 from app.services.vendors import VendorSort
@@ -27,11 +29,12 @@ router = APIRouter(prefix="/vendors", tags=["vendors"])
 @router.get("", response_model=Page[VendorPublic])
 def list_vendors(
     category: str | None = Query(default=None, max_length=90, description="Category slug, e.g. photography"),
-    q: str | None = Query(default=None, max_length=100, description="Search business name and description"),
+    q: str | None = Query(default=None, max_length=100, description="Search name, description, category and packages"),
     location: str | None = Query(default=None, max_length=100, description="Town or service area"),
     min_price: Decimal | None = Query(default=None, ge=0),
     max_price: Decimal | None = Query(default=None, ge=0),
     available_on: date | None = Query(default=None, description="Only vendors who declared this date available"),
+    min_rating: float | None = Query(default=None, ge=1, le=5, description="Only vendors with real reviews averaging at least this"),
     sort: VendorSort = "newest",
     params: PageParams = Depends(get_page_params),
     db: Session = Depends(get_db),
@@ -40,10 +43,10 @@ def list_vendors(
     if min_price is not None and max_price is not None and min_price > max_price:
         raise BusinessRuleError("Minimum price cannot be more than maximum price")
     items, total = vendor_service.list_public_vendors(
-        db, params, category_slug=category, q=q, location=location,
-        min_price=min_price, max_price=max_price, available_on=available_on, sort=sort,
+        db, params, category_slug=category, q=q, location=location, min_price=min_price,
+        max_price=max_price, available_on=available_on, min_rating=min_rating, sort=sort,
     )
-    return Page[VendorPublic].build([vendor_public(v, storage) for v in items], total, params.page, params.size)
+    return Page[VendorPublic].build(vendors_public(db, items, storage), total, params.page, params.size)
 
 
 @router.get("/locations", response_model=list[str])
@@ -54,7 +57,8 @@ def list_locations(db: Session = Depends(get_db)) -> list[str]:
 
 @router.get("/{slug}", response_model=VendorPublic)
 def get_vendor(slug: str, db: Session = Depends(get_db), storage: MediaStorage = Depends(get_storage)) -> VendorPublic:
-    return vendor_public(vendor_service.get_public_vendor(db, slug), storage)
+    vendor = vendor_service.get_public_vendor(db, slug)
+    return vendor_public(vendor, storage, review_service.review_stats(db, [vendor.id]))
 
 
 @router.get("/{slug}/packages", response_model=list[PackageRead])
@@ -82,3 +86,25 @@ def get_vendor_availability(  # type: ignore[no-untyped-def]
     vendor = vendor_service.get_public_vendor(db, slug)
     start, end = availability_service.resolve_range(start, end)
     return availability_service.list_availability(db, vendor, start, end)
+
+
+@router.get("/{slug}/reviews", response_model=VendorReviews)
+def get_vendor_reviews(
+    slug: str, params: PageParams = Depends(get_page_params), db: Session = Depends(get_db)
+) -> VendorReviews:
+    """Reviews from customers with completed bookings. Reviewer names are shortened for privacy."""
+    vendor = vendor_service.get_public_vendor(db, slug)
+    items, total = review_service.list_public_reviews(db, vendor, params)
+    average, count = review_service.review_stats(db, [vendor.id]).get(vendor.id, (None, 0))
+    page = Page.build(items, total, params.page, params.size)
+    return VendorReviews(
+        average=average,
+        count=count,
+        page=page.page,
+        pages=page.pages,
+        items=[
+            ReviewPublic(id=r.id, rating=r.rating, comment=r.comment, reviewer_name=review_service.reviewer_name(r.customer),
+                         created_at=r.created_at)
+            for r in items
+        ],
+    )

@@ -6,7 +6,39 @@ A local-first marketplace for discovering and booking wedding vendors (photograp
 * Backend: FastAPI + SQLAlchemy 2 + Alembic → http://localhost:8000 (docs: http://localhost:8000/docs)
 * Database: PostgreSQL → localhost:5432
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and phase plan.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design, API overview and business rules.
+
+## What it does
+
+| Role | Can |
+|---|---|
+| **Customer** | Browse and search vendors (service, location, price, declared availability, rating) · shortlist · send one enquiry to several vendors · compare quotations side by side · accept a quotation (creates a booking request) · track bookings · plan each function with a budget tracker · review vendors after completed bookings · report listings |
+| **Vendor** | Create or claim a business profile (published after admin approval) · packages and prices · portfolio photos · availability · reply to enquiries with quotations · confirm, decline, cancel or complete bookings |
+| **Administrator** | Overview statistics · add vendors on their behalf · approve / reject / suspend / verify · manage categories without code changes · manage users, enquiries, bookings, reviews and complaints · audit log |
+
+## Day-to-day workflows
+
+**Add a vendor you met in person** — Admin → Add vendor → fill the profile → add packages and photos → Approve.
+It appears immediately in its category. To hand it over, open the vendor → *Generate claim code* → give the code to
+the owner; they sign up as a vendor and enter it on *My business*.
+
+**Add a new service (e.g. Mehendi Artists)** — Admin → Categories → New category. No code or database change needed.
+
+**Customer journey** — Save vendors → *Request quotations* → vendors reply → *Compare quotations* → Accept →
+vendor confirms the booking → after the event the vendor marks it completed → customer leaves a review.
+
+## Running every day
+
+Two PowerShell windows:
+
+```powershell
+# Window 1, from Web-App\backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --port 8000
+
+# Window 2, from Web-App\frontend
+npm run dev
+```
 
 ## Prerequisites (Windows)
 

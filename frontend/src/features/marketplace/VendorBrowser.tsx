@@ -19,6 +19,7 @@ const SORTS = [
   { value: "price_low", label: "Price: low to high" },
   { value: "price_high", label: "Price: high to low" },
   { value: "name", label: "Name (A–Z)" },
+  { value: "rating", label: "Top rated" },
 ];
 
 const inputClass = "mt-1 block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm";

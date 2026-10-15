@@ -125,6 +125,54 @@ Honesty rules in the UI: no price → "Contact for pricing"; no declared availab
 availability"; no photos → a labelled "No photos yet" placeholder; "Verified" only when an admin set it; no ratings
 are shown until real reviews exist (Phase 5).
 
+## Quotations, planning, bookings, reviews (Phase 5)
+
+### Enquiry → quotation → booking
+
+```
+customer: POST /me/quotation-requests {vendor_ids[], date, location, requirements, budget}
+             one enquiry per vendor, created all-or-nothing; duplicate open enquiry for same vendor+date → 409
+vendor:   POST /me/vendor/enquiries/{id}/quotations   (sending again replaces the previous one → withdrawn)
+          POST /me/vendor/enquiries/{id}/decline      (optional message shown to the customer)
+customer: GET  /me/quotations                         (compare)
+          POST /me/quotations/{id}/accept   ─► in ONE transaction:
+                 quotation accepted, other sent quotes on that enquiry rejected,
+                 enquiry closed, booking created as `requested` with the quoted amount
+vendor:   POST /me/vendor/bookings/{id}/confirm       ─► booking `confirmed` (never automatic)
+```
+
+Quotations past `validity_date` are marked `expired` whenever quotations are read, and cannot be accepted.
+
+### Booking state machine (`services/bookings.py`)
+
+| Action | From | To | Who | Extra rule |
+|---|---|---|---|---|
+| confirm | requested | confirmed | vendor, admin | event not in the past; agreed amount required |
+| reject | requested | rejected | vendor, admin | reason required |
+| cancel | requested, confirmed | cancelled | customer, vendor, admin | reason required |
+| complete | confirmed | completed | vendor, admin | only on/after the event date |
+
+Anything else returns 400 (wrong state) or 403 (wrong role). Every transition is audited. Confirming a booking
+linked to a wedding plan adds a `booked` budget line automatically.
+
+### Wedding plans & budget
+
+One plan per function (engagement, haldi, wedding, reception…). Budget lines can exist without a vendor.
+`committed` = actual cost where entered, otherwise estimate; cancelled lines are ignored;
+`remaining` = budget − committed; `over_budget` when remaining < 0.
+
+### Reviews and complaints
+
+* `POST /me/bookings/{id}/review`: only the booking's customer, only when `completed`, one per booking (DB unique).
+* Public reviews show "First L." only. Ratings/averages are computed from visible reviews; no reviews → no rating.
+* `POST /reports` (any signed-in user) reports a listing or review. Admins resolve/dismiss at `/admin/reports`
+  and act via vendor suspension or `PATCH /admin/reviews/{id}` (hide, never delete).
+
+### Admin operations
+
+`/admin/stats`, `/admin/quotation-requests`, `/admin/bookings` (+cancel, complete), `/admin/reviews`,
+`/admin/reports`, `/admin/audit-logs` (filter by action prefix and record type).
+
 ## Folder structure
 
 ```

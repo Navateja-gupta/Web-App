@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Date, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,6 +10,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.enums import PlanItemStatus
 from app.models.mixins import Money, TimestampMixin, enum_column
+
+if TYPE_CHECKING:
+    from app.models.category import ServiceCategory
+    from app.models.vendor import Vendor
 
 
 class WeddingPlan(TimestampMixin, Base):
@@ -55,3 +60,5 @@ class WeddingPlanItem(TimestampMixin, Base):
     )
 
     plan: Mapped[WeddingPlan] = relationship(back_populates="items")
+    category: Mapped[ServiceCategory | None] = relationship()
+    vendor: Mapped[Vendor | None] = relationship()

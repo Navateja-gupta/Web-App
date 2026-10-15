@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.v1.presenters import vendor_public
+from app.api.v1.presenters import vendor_public, vendors_public
 from app.db.session import get_db
 from app.dependencies.auth import require_customer
 from app.models.user import User
@@ -26,10 +26,9 @@ def list_shortlist(
     db: Session = Depends(get_db),
     storage: MediaStorage = Depends(get_storage),
 ) -> list[ShortlistItem]:
-    return [
-        ShortlistItem(vendor=vendor_public(vendor, storage), added_at=added_at)
-        for vendor, added_at in shortlist_service.list_shortlist(db, customer)
-    ]
+    rows = shortlist_service.list_shortlist(db, customer)
+    vendors = vendors_public(db, [vendor for vendor, _ in rows], storage)
+    return [ShortlistItem(vendor=v, added_at=added_at) for v, (_, added_at) in zip(vendors, rows)]
 
 
 @router.get("/ids", response_model=list[int])

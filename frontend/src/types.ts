@@ -48,6 +48,8 @@ export interface VendorPublic {
   starting_price: number | null;
   is_verified: boolean;
   cover_image_url: string | null;
+  rating_average: number | null;
+  review_count: number;
 }
 
 export interface VendorOwner extends VendorPublic {
@@ -102,6 +104,137 @@ export interface PortfolioItem {
   display_order: number;
   created_at: string;
 }
+
+// ---------- Planning, enquiries, bookings (Phase 5) ----------
+
+export interface VendorSummary {
+  id: number;
+  slug: string;
+  business_name: string;
+  category: CategorySummary;
+  contact_phone: string;
+  location: string;
+}
+
+export interface CustomerContact {
+  id: number;
+  full_name: string;
+  email: string;
+  phone: string | null;
+}
+
+export type EnquiryStatus = "pending" | "quoted" | "declined" | "cancelled" | "closed";
+export type QuotationStatus = "sent" | "accepted" | "rejected" | "withdrawn" | "expired";
+export type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled" | "rejected";
+export type PlanItemStatus = "planned" | "shortlisted" | "booked" | "paid" | "cancelled";
+
+export interface Quotation {
+  id: number;
+  quotation_request_id: number;
+  vendor: VendorSummary;
+  quoted_amount: number;
+  description: string | null;
+  inclusions: string[];
+  exclusions: string[];
+  validity_date: string | null;
+  status: QuotationStatus;
+  created_at: string;
+}
+
+export interface Enquiry {
+  id: number;
+  vendor: VendorSummary;
+  service_date: string;
+  event_location: string;
+  guest_count: number | null;
+  requirements: string;
+  budget: number | null;
+  status: EnquiryStatus;
+  vendor_response: string | null;
+  wedding_plan_id: number | null;
+  created_at: string;
+  updated_at: string;
+  quotations: Quotation[];
+  /** Present for vendor and admin views only. */
+  customer?: CustomerContact;
+}
+
+export interface Booking {
+  id: number;
+  vendor: VendorSummary;
+  customer: CustomerContact;
+  package: { id: number; name: string } | null;
+  quotation_id: number | null;
+  wedding_plan_id: number | null;
+  event_date: string;
+  event_location: string | null;
+  agreed_amount: number | null;
+  booking_status: BookingStatus;
+  notes: string | null;
+  confirmed_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  has_review: boolean;
+  created_at: string;
+}
+
+export interface BudgetSummary {
+  estimated_budget: number | null;
+  total_estimated: number;
+  total_actual: number;
+  committed: number;
+  remaining: number | null;
+  over_budget: boolean;
+  item_count: number;
+  by_status: Record<PlanItemStatus, number>;
+}
+
+export interface PlanItem {
+  id: number;
+  description: string;
+  category: CategorySummary | null;
+  vendor: { id: number; slug: string; business_name: string } | null;
+  package_id: number | null;
+  estimated_cost: number;
+  actual_cost: number | null;
+  status: PlanItemStatus;
+  created_at: string;
+}
+
+export interface WeddingPlanSummary {
+  id: number;
+  event_name: string;
+  event_date: string | null;
+  location: string | null;
+  estimated_budget: number | null;
+  guest_count: number | null;
+  created_at: string;
+  updated_at: string;
+  budget: BudgetSummary;
+}
+
+export interface WeddingPlan extends WeddingPlanSummary {
+  items: PlanItem[];
+}
+
+export interface ReviewPublic {
+  id: number;
+  rating: number;
+  comment: string | null;
+  reviewer_name: string;
+  created_at: string;
+}
+
+export interface VendorReviews {
+  average: number | null;
+  count: number;
+  items: ReviewPublic[];
+  page: number;
+  pages: number;
+}
+
+export type ReportReason = "fake_listing" | "wrong_information" | "inappropriate_content" | "poor_service" | "other";
 
 export type AvailabilityStatus = "available" | "tentative" | "booked" | "unavailable";
 

@@ -16,7 +16,7 @@ logger = logging.getLogger("app")
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
-        version="0.3.0",
+        version="1.0.0",
         openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",

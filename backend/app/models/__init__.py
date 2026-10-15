@@ -5,6 +5,7 @@ from app.models.booking import Booking, Review
 from app.models.category import ServiceCategory
 from app.models.package import VendorPackage
 from app.models.quotation import Quotation, QuotationRequest
+from app.models.report import Report
 from app.models.shortlist import CustomerShortlist
 from app.models.user import RefreshToken, User
 from app.models.vendor import Vendor, VendorAvailability, VendorPortfolio
@@ -17,6 +18,7 @@ __all__ = [
     "Quotation",
     "QuotationRequest",
     "RefreshToken",
+    "Report",
     "Review",
     "ServiceCategory",
     "User",

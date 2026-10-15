@@ -13,6 +13,7 @@ from app.core.errors import BusinessRuleError, ConflictError, NotFoundError
 from app.core.security import hash_token
 from app.core.text import unique_slug
 from app.dependencies.pagination import PageParams
+from app.models.booking import Review
 from app.models.category import ServiceCategory
 from app.models.enums import ApprovalStatus, AvailabilityStatus, UserRole
 from app.models.package import VendorPackage
@@ -21,7 +22,7 @@ from app.models.vendor import Vendor, VendorAvailability
 from app.schemas.vendor import AdminVendorUpdate, VendorCreate, VendorUpdate
 from app.services.audit import record_audit
 
-VendorSort = Literal["newest", "price_low", "price_high", "name"]
+VendorSort = Literal["newest", "price_low", "price_high", "name", "rating"]
 
 # The single definition of "publicly visible".
 PUBLIC_CONDITIONS = (
@@ -123,9 +124,24 @@ def list_public_vendors(
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
     available_on: date | None = None,
+    min_rating: float | None = None,
     sort: VendorSort = "newest",
 ) -> tuple[list[Vendor], int]:
-    stmt = select(Vendor).join(Vendor.category).where(*PUBLIC_CONDITIONS)
+    # Ratings come only from visible reviews of completed bookings.
+    ratings = (
+        select(Review.vendor_id, func.avg(Review.rating).label("avg_rating"), func.count().label("review_count"))
+        .where(Review.is_visible.is_(True))
+        .group_by(Review.vendor_id)
+        .subquery()
+    )
+    stmt = (
+        select(Vendor)
+        .join(Vendor.category)
+        .outerjoin(ratings, ratings.c.vendor_id == Vendor.id)
+        .where(*PUBLIC_CONDITIONS)
+    )
+    if min_rating is not None:
+        stmt = stmt.where(ratings.c.avg_rating >= min_rating)
     if category_slug:
         stmt = stmt.where(ServiceCategory.slug == category_slug)
     if q and q.strip():
@@ -171,6 +187,7 @@ def list_public_vendors(
         "price_low": [Vendor.starting_price.asc().nulls_last(), Vendor.id],
         "price_high": [Vendor.starting_price.desc().nulls_last(), Vendor.id],
         "name": [func.lower(Vendor.business_name), Vendor.id],
+        "rating": [ratings.c.avg_rating.desc().nulls_last(), ratings.c.review_count.desc().nulls_last(), Vendor.id],
     }[sort]
     return _paginate(db, stmt, params, order)
 

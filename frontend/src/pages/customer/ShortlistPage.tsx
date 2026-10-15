@@ -30,9 +30,16 @@ export default function ShortlistPage() {
 
   return (
     <section className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-semibold text-maroon-800">My shortlist</h1>
-        <p className="text-stone-600">Vendors you have saved for your wedding.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-semibold text-maroon-800">My shortlist</h1>
+          <p className="text-stone-600">Vendors you have saved for your wedding.</p>
+        </div>
+        {visible && visible.length > 0 && (
+          <Link to="/request-quote" className="rounded-lg bg-maroon-700 px-4 py-2 text-sm font-medium text-white hover:bg-maroon-800">
+            Request quotations
+          </Link>
+        )}
       </div>
       {error ? (
         <Alert kind="error">{error}</Alert>

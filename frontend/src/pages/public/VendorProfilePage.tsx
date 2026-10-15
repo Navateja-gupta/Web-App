@@ -7,6 +7,7 @@ import ShortlistButton from "../../components/ShortlistButton";
 import Spinner from "../../components/Spinner";
 import { Badge } from "../../components/StatusBadge";
 import VendorImage from "../../components/VendorImage";
+import { ReportListing, RequestQuoteButton, ReviewsSection, Stars } from "../../features/marketplace/VendorProfileExtras";
 import { api, getErrorMessage } from "../../lib/api";
 import { AVAILABILITY_LABEL, formatDate, packagePriceLabel, startingPriceLabel, todayISO } from "../../lib/format";
 import type { AvailabilityEntry, PortfolioItem, VendorPackage, VendorPublic } from "../../types";
@@ -175,8 +176,17 @@ export default function VendorProfilePage() {
             <span>{vendor.category.name}</span>·<span>{vendor.location}</span>
             {vendor.is_verified && <Badge tone="blue">Verified by our team</Badge>}
           </p>
+          {vendor.rating_average !== null && vendor.review_count > 0 && (
+            <p className="mt-1 text-sm text-stone-700">
+              <Stars value={vendor.rating_average} /> {vendor.rating_average.toFixed(1)} · {vendor.review_count}{" "}
+              {vendor.review_count === 1 ? "review" : "reviews"}
+            </p>
+          )}
         </div>
-        <ShortlistButton vendorId={vendor.id} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ShortlistButton vendorId={vendor.id} />
+          <RequestQuoteButton slug={vendor.slug} />
+        </div>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
@@ -228,6 +238,8 @@ export default function VendorProfilePage() {
               </ul>
             )}
           </section>
+
+          <ReviewsSection slug={vendor.slug} />
         </div>
 
         <aside className="space-y-5">
@@ -261,6 +273,7 @@ export default function VendorProfilePage() {
           <div className="rounded-xl border border-maroon-100 bg-white p-5 shadow-sm">
             <AvailabilityBox entries={availability} />
           </div>
+          <ReportListing vendorId={vendor.id} />
         </aside>
       </div>
     </article>

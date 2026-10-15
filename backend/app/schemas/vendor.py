@@ -94,6 +94,9 @@ class VendorPublic(BaseModel):
     starting_price: MoneyOut | None
     is_verified: bool
     cover_image_url: str | None = None
+    # Computed only from real, visible reviews of completed bookings.
+    rating_average: float | None = None
+    review_count: int = 0
 
 
 class VendorOwnerRead(VendorPublic):

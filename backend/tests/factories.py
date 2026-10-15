@@ -82,6 +82,32 @@ def make_vendor(
     return vendor
 
 
+def make_booking(
+    db: Session,
+    customer: User,
+    vendor: Vendor,
+    *,
+    status: "BookingStatus | None" = None,
+    event_date: "date | None" = None,
+    agreed_amount: Decimal | None = Decimal("50000"),
+) -> "Booking":
+    from datetime import date, timedelta
+
+    from app.models.booking import Booking
+    from app.models.enums import BookingStatus
+
+    booking = Booking(
+        customer_id=customer.id,
+        vendor_id=vendor.id,
+        event_date=event_date or date.today() + timedelta(days=30),
+        agreed_amount=agreed_amount,
+        booking_status=status or BookingStatus.REQUESTED,
+    )
+    db.add(booking)
+    db.flush()
+    return booking
+
+
 def image_bytes(fmt: str = "PNG", size: tuple[int, int] = (24, 16), exif: Image.Exif | None = None) -> bytes:
     img = Image.new("RGB", size, (160, 30, 60))
     buffer = BytesIO()

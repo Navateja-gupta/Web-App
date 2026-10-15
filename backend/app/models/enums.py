@@ -62,6 +62,20 @@ class PlanItemStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class ReportReason(str, enum.Enum):
+    FAKE_LISTING = "fake_listing"
+    WRONG_INFORMATION = "wrong_information"
+    INAPPROPRIATE_CONTENT = "inappropriate_content"
+    POOR_SERVICE = "poor_service"
+    OTHER = "other"
+
+
+class ReportStatus(str, enum.Enum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+    DISMISSED = "dismissed"
+
+
 class BookingStatus(str, enum.Enum):
     REQUESTED = "requested"
     CONFIRMED = "confirmed"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -10,6 +11,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.enums import QuotationRequestStatus, QuotationStatus
 from app.models.mixins import Money, TimestampMixin, enum_column
+
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.vendor import Vendor
 
 
 class QuotationRequest(TimestampMixin, Base):
@@ -37,8 +42,12 @@ class QuotationRequest(TimestampMixin, Base):
         default=QuotationRequestStatus.PENDING,
         server_default=QuotationRequestStatus.PENDING.value,
     )
+    # Vendor's message when declining (shown to the customer).
+    vendor_response: Mapped[str | None] = mapped_column(Text)
 
     quotations: Mapped[list[Quotation]] = relationship(back_populates="request", order_by="Quotation.id")
+    vendor: Mapped[Vendor] = relationship()
+    customer: Mapped[User] = relationship()
 
 
 class Quotation(TimestampMixin, Base):
@@ -62,3 +71,4 @@ class Quotation(TimestampMixin, Base):
     )
 
     request: Mapped[QuotationRequest] = relationship(back_populates="quotations")
+    vendor: Mapped[Vendor] = relationship()

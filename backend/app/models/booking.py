@@ -1,12 +1,20 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, SmallInteger, String, Text, func, true
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import BookingStatus
 from app.models.mixins import Money, TimestampMixin, enum_column
+
+if TYPE_CHECKING:
+    from app.models.package import VendorPackage
+    from app.models.user import User
+    from app.models.vendor import Vendor
 
 
 class Booking(TimestampMixin, Base):
@@ -38,7 +46,17 @@ class Booking(TimestampMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    # Reason for cancellation or vendor rejection.
     cancellation_reason: Mapped[str | None] = mapped_column(Text)
+
+    vendor: Mapped[Vendor] = relationship()
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    package: Mapped[VendorPackage | None] = relationship()
+    review: Mapped[Review | None] = relationship(back_populates="booking", uselist=False)
+
+    @property
+    def has_review(self) -> bool:
+        return self.review is not None
 
 
 class Review(Base):
@@ -56,3 +74,7 @@ class Review(Base):
     # Lets an admin hide a review after a valid complaint without deleting it.
     is_visible: Mapped[bool] = mapped_column(default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    booking: Mapped[Booking] = relationship(back_populates="review")
+    customer: Mapped[User] = relationship()
+    vendor: Mapped[Vendor] = relationship()

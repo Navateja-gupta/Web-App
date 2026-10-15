@@ -1,4 +1,60 @@
-import type { ApprovalStatus, AvailabilityStatus, PricingType, VendorPackage } from "../types";
+import type {
+  ApprovalStatus,
+  AvailabilityStatus,
+  BookingStatus,
+  EnquiryStatus,
+  PlanItemStatus,
+  PricingType,
+  QuotationStatus,
+  ReportReason,
+  VendorPackage,
+} from "../types";
+
+export const ENQUIRY_LABEL: Record<EnquiryStatus, string> = {
+  pending: "Waiting for vendor",
+  quoted: "Quotation received",
+  declined: "Declined by vendor",
+  cancelled: "Cancelled",
+  closed: "Closed",
+};
+
+export const QUOTATION_LABEL: Record<QuotationStatus, string> = {
+  sent: "Awaiting your decision",
+  accepted: "Accepted",
+  rejected: "Declined",
+  withdrawn: "Withdrawn",
+  expired: "Expired",
+};
+
+export const BOOKING_LABEL: Record<BookingStatus, string> = {
+  requested: "Awaiting vendor confirmation",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  rejected: "Not accepted by vendor",
+};
+
+export const PLAN_ITEM_LABEL: Record<PlanItemStatus, string> = {
+  planned: "Planned",
+  shortlisted: "Shortlisted",
+  booked: "Booked",
+  paid: "Paid",
+  cancelled: "Cancelled",
+};
+
+export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
+  fake_listing: "Fake or misleading listing",
+  wrong_information: "Wrong contact or business information",
+  inappropriate_content: "Inappropriate photos or text",
+  poor_service: "Poor service or unprofessional behaviour",
+  other: "Something else",
+};
+
+/** Ratings are only shown when real reviews exist. */
+export function ratingLabel(average: number | null, count: number): string | null {
+  if (average === null || count === 0) return null;
+  return `★ ${average.toFixed(1)} (${count} ${count === 1 ? "review" : "reviews"})`;
+}
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 
