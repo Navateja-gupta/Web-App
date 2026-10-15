@@ -96,6 +96,26 @@ class UserStatusUpdate(BaseModel):
     is_active: bool
 
 
+class ResetLinkRead(BaseModel):
+    reset_url: str
+    expires_at: datetime
+    user_email: str
+
+
+class ResetTokenIn(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+
+
+class ResetTokenInfo(BaseModel):
+    first_name: str
+
+
+class PasswordResetConfirm(ResetTokenIn):
+    new_password: str = Field(min_length=8, max_length=128)
+
+    _password_strength = field_validator("new_password")(check_password_strength)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

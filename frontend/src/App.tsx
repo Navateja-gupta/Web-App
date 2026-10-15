@@ -37,6 +37,7 @@ import ContactPage from "./pages/public/ContactPage";
 import SearchPage from "./pages/public/SearchPage";
 import VendorProfilePage from "./pages/public/VendorProfilePage";
 import RegisterPage from "./pages/RegisterPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VendorDashboardPage from "./pages/vendor/VendorDashboardPage";
 
 function ScrollToTop() {
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage role="customer" />} />
           <Route path="/vendor/register" element={<RegisterPage role="vendor" />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Customer workspace */}
           <Route

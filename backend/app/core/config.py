@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # --- Vendor onboarding ---
     CLAIM_CODE_EXPIRE_DAYS: int = 7
 
+    # --- Password reset links ---
+    PASSWORD_RESET_EXPIRE_HOURS: int = 24
+
     # --- Email notifications (SMTP, e.g. Gmail with an app password) ---
     EMAIL_ENABLED: bool = False
     # Background sender thread; disabled by the test suite so tests never send real email.

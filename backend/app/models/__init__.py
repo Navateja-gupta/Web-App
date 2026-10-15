@@ -5,6 +5,7 @@ from app.models.booking import Booking, Review
 from app.models.category import ServiceCategory
 from app.models.notification import EmailOutbox, Notification
 from app.models.package import VendorPackage
+from app.models.password_reset import PasswordResetToken
 from app.models.quotation import Quotation, QuotationRequest
 from app.models.report import Report
 from app.models.shortlist import CustomerShortlist
@@ -18,6 +19,7 @@ __all__ = [
     "CustomerShortlist",
     "EmailOutbox",
     "Notification",
+    "PasswordResetToken",
     "Quotation",
     "QuotationRequest",
     "RefreshToken",

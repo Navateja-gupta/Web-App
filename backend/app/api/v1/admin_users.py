@@ -7,7 +7,8 @@ from app.dependencies.pagination import PageParams, get_page_params
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.common import Page
-from app.schemas.user import UserRead, UserStatusUpdate
+from app.schemas.user import ResetLinkRead, UserRead, UserStatusUpdate
+from app.services import password_reset as password_reset_service
 from app.services import users as user_service
 
 router = APIRouter(prefix="/admin/users", tags=["admin: users"])
@@ -26,6 +27,18 @@ def list_users(
     return Page[UserRead].build(
         [UserRead.model_validate(u) for u in items], total, params.page, params.size
     )
+
+
+@router.post("/{user_id}/password-reset-link", response_model=ResetLinkRead)
+def create_password_reset_link(
+    user_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)
+) -> ResetLinkRead:
+    """One-time link (valid 24 h) for a user who forgot their password.
+
+    Share it only with that person, directly. Anyone holding the link can set a new password.
+    """
+    url, expires_at, user = password_reset_service.create_reset_link(db, admin, user_id)
+    return ResetLinkRead(reset_url=url, expires_at=expires_at, user_email=user.email)
 
 
 @router.patch("/{user_id}", response_model=UserRead)

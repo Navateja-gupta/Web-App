@@ -58,6 +58,13 @@ export default function LoginPage() {
         <Button type="submit" loading={submitting} disabled={!email || !password} className="w-full">
           Log in
         </Button>
+        <p className="text-center text-sm text-stone-600">
+          Forgot your password?{" "}
+          <Link to="/contact" className="text-maroon-700 underline">
+            Contact us
+          </Link>{" "}
+          and we'll send you a reset link.
+        </p>
       </form>
 
       <p className="mt-4 text-center text-sm text-stone-600">

@@ -9,13 +9,25 @@ from app.core.security import create_access_token
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.user import PasswordChange, TokenResponse, UserLogin, UserRead, UserRegister, UserUpdate
+from app.schemas.user import (
+    PasswordChange,
+    PasswordResetConfirm,
+    ResetTokenIn,
+    ResetTokenInfo,
+    TokenResponse,
+    UserLogin,
+    UserRead,
+    UserRegister,
+    UserUpdate,
+)
 from app.services import auth as auth_service
+from app.services import password_reset as password_reset_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 login_rate_limit = rate_limit(settings.LOGIN_RATE_LIMIT, settings.LOGIN_RATE_WINDOW_SECONDS)
 register_rate_limit = rate_limit(settings.REGISTER_RATE_LIMIT, settings.REGISTER_RATE_WINDOW_SECONDS)
+reset_rate_limit = rate_limit(20, 3600)
 
 
 @router.post(
@@ -60,6 +72,19 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
 def logout(request: Request, response: Response, db: Session = Depends(get_db)) -> None:
     auth_service.revoke_refresh_token(db, request.cookies.get(REFRESH_COOKIE))
     clear_auth_cookies(response)
+
+
+@router.post("/password-reset/verify", response_model=ResetTokenInfo, dependencies=[Depends(reset_rate_limit)])
+def verify_reset_link(data: ResetTokenIn, db: Session = Depends(get_db)) -> ResetTokenInfo:
+    """Check a reset link before showing the form. POST keeps the token out of URLs and logs."""
+    user = password_reset_service.check_link(db, data.token)
+    return ResetTokenInfo(first_name=user.full_name.split()[0])
+
+
+@router.post("/password-reset", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(reset_rate_limit)])
+def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)) -> None:
+    """Set a new password using a one-time link from an administrator. Signs out all sessions."""
+    password_reset_service.reset_password(db, data.token, data.new_password)
 
 
 @router.get("/me", response_model=UserRead)

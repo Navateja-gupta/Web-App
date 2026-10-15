@@ -25,6 +25,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [resetLink, setResetLink] = useState<{ name: string; email: string; url: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,6 +57,34 @@ export default function AdminUsersPage() {
     e.preventDefault();
     setPage(1);
     setFilters(draft);
+  }
+
+  async function createResetLink(target: User) {
+    if (!window.confirm(`Create a one-time password reset link for ${target.full_name}?`)) return;
+    setBusyId(target.id);
+    setError(null);
+    setNotice(null);
+    setCopied(false);
+    try {
+      const res = await api.post<{ reset_url: string; expires_at: string; user_email: string }>(
+        `/admin/users/${target.id}/password-reset-link`,
+      );
+      setResetLink({ name: target.full_name, email: res.data.user_email, url: res.data.reset_url, expiresAt: res.data.expires_at });
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function copyResetLink() {
+    if (!resetLink) return;
+    try {
+      await navigator.clipboard.writeText(resetLink.url);
+      setCopied(true);
+    } catch {
+      setError("Could not copy automatically. Select the link and copy it manually.");
+    }
   }
 
   async function toggleActive(target: User) {
@@ -122,6 +152,33 @@ export default function AdminUsersPage() {
 
       {error && <Alert kind="error">{error}</Alert>}
       {notice && <Alert kind="success">{notice}</Alert>}
+      {resetLink && (
+        <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm" role="status">
+          <p className="font-semibold text-amber-900">
+            Password reset link for {resetLink.name} ({resetLink.email})
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={resetLink.url}
+              onFocus={(e) => e.target.select()}
+              aria-label="Reset link"
+              className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 font-mono text-xs"
+            />
+            <Button variant="secondary" onClick={copyResetLink}>
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+            <Button variant="secondary" onClick={() => setResetLink(null)}>
+              Close
+            </Button>
+          </div>
+          <p className="text-amber-900">
+            Valid until {new Date(resetLink.expiresAt).toLocaleString("en-IN")} and works once. Send it only to this person directly (call,
+            SMS or WhatsApp after confirming it's really them) — anyone with the link can set a new password. Generating another link
+            cancels this one.
+          </p>
+        </div>
+      )}
 
       {loading && !data ? (
         <Spinner />
@@ -161,15 +218,22 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">{new Date(u.created_at).toLocaleDateString("en-IN")}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="space-x-2 whitespace-nowrap px-4 py-3 text-right">
                       {u.id !== me?.id && (
-                        <Button
-                          variant={u.is_active ? "danger" : "secondary"}
-                          loading={busyId === u.id}
-                          onClick={() => toggleActive(u)}
-                        >
-                          {u.is_active ? "Deactivate" : "Activate"}
-                        </Button>
+                        <>
+                          {u.is_active && (
+                            <Button variant="secondary" disabled={busyId === u.id} onClick={() => createResetLink(u)}>
+                              Reset link
+                            </Button>
+                          )}
+                          <Button
+                            variant={u.is_active ? "danger" : "secondary"}
+                            loading={busyId === u.id}
+                            onClick={() => toggleActive(u)}
+                          >
+                            {u.is_active ? "Deactivate" : "Activate"}
+                          </Button>
+                        </>
                       )}
                     </td>
                   </tr>
