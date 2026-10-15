@@ -1,22 +1,41 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
+import ProtectedRoute from "./auth/ProtectedRoute";
+import Header from "./components/Header";
+import AccountPage from "./pages/AccountPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import RegisterPage from "./pages/RegisterPage";
 
 export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-maroon-100 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center px-4 py-4">
-          <Link to="/" className="font-display text-xl font-semibold text-maroon-700">
-            Kamareddy Wedding Services
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage role="customer" />} />
+          <Route path="/vendor/register" element={<RegisterPage role="vendor" />} />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

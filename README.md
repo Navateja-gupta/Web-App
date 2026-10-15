@@ -55,6 +55,20 @@ If the password contains special characters (`@ : / %`), URL-encode them.
 > If activation fails with "running scripts is disabled", run once:
 > `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
 
+Apply database migrations (from `Web-App\backend`, venv active):
+
+```powershell
+alembic upgrade head
+```
+
+Create an administrator (administrators cannot sign up through the website):
+
+```powershell
+python -m app.scripts.create_admin --email you@example.com --name "Your Name"
+```
+
+You will be prompted for the password (hidden input).
+
 Start the API (from `Web-App\backend`, venv active):
 
 ```powershell

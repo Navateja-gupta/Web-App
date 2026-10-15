@@ -10,10 +10,13 @@ from app.db.base import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's existing loggers working when migrations run inside pytest.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
+# Use the dev database unless a caller (e.g. the test suite) already set a URL.
 # "%" must be escaped because alembic's config uses ConfigParser interpolation.
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

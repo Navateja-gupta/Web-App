@@ -19,12 +19,44 @@ React (Vite, TS, Tailwind)  ──HTTP/JSON + HTTP-only cookie──►  FastAPI
 * **Authorization is enforced on the backend.** Frontend role checks only hide UI.
 * **Configuration comes from environment variables** (`backend/.env`, `frontend/.env`), so the app can move to containers/cloud later.
 
-## Auth / token strategy (implemented in Phase 2)
+## Auth / token strategy
 
-* Passwords hashed with Argon2 via `pwdlib`.
-* Short-lived JWT access token (≈30 min) in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` in production).
-* Refresh tokens stored server-side (hashed) so logout and admin deactivation can revoke them.
-* Tokens are never placed in `localStorage`. The OAuth2 bearer header is also accepted for Swagger/Postman testing.
+| Piece | Choice |
+|---|---|
+| Password hashing | Argon2id via `pwdlib`; hashes upgraded automatically on login if parameters change |
+| Access token | JWT (HS256), 15 min, cookie `access_token` (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when `COOKIE_SECURE=true`) |
+| Refresh token | Random 64-char token, 7 days, cookie `refresh_token` scoped to `Path=/api/v1/auth`; only its SHA-256 hash is stored (`refresh_tokens` table) |
+| Rotation | Every `/auth/refresh` revokes the old refresh token and issues a new pair |
+| Theft detection | Replaying an already-rotated refresh token (outside a 30 s grace window) revokes all of that user's sessions |
+| Revocation | Logout revokes the refresh token. Password change and admin deactivation set `users.tokens_valid_after`, which instantly invalidates all existing access tokens |
+| CSRF | `SameSite=Lax` cookies + JSON-only APIs; cross-site forms cannot send credentials |
+| Tools | `POST /auth/token` (OAuth2 password form) returns a bearer token for Swagger/Postman |
+| Rate limits | In-memory, per IP: login 10 / 5 min, register 10 / hour. Replace with a shared store if several server processes are ever used |
+| Roles | `customer`, `vendor`, `admin`. Admins are created only via `python -m app.scripts.create_admin` |
+
+Tokens are never placed in `localStorage`. The frontend only shows/hides UI by role; every rule is enforced by the backend.
+
+## Auth API
+
+| Method | Path | Who |
+|---|---|---|
+| POST | `/api/v1/auth/register` | anyone (role `customer` or `vendor`) |
+| POST | `/api/v1/auth/login` | anyone |
+| POST | `/api/v1/auth/token` | anyone (Swagger/Postman) |
+| POST | `/api/v1/auth/refresh` | holder of refresh cookie |
+| POST | `/api/v1/auth/logout` | anyone |
+| GET/PATCH | `/api/v1/auth/me` | signed-in user |
+| POST | `/api/v1/auth/change-password` | signed-in user |
+| GET | `/api/v1/admin/users` | admin |
+| PATCH | `/api/v1/admin/users/{id}` | admin (activate/deactivate) |
+
+## Schema decisions
+
+* Status/role columns are `VARCHAR` + `CHECK` constraints rather than native PostgreSQL enums, so adding a state later is a simple migration.
+* Constraint names follow a fixed naming convention (`app/db/base.py`) so migrations are stable.
+* `vendors` has a case-insensitive unique index on `(category_id, lower(business_name))`.
+* Packages must have a price unless `pricing_type = quote_on_request`; `price_max` (range) must be ≥ `price`.
+* Customer-owned history (bookings, enquiries, reviews) uses `ON DELETE RESTRICT`: users are deactivated, not deleted.
 
 ## Folder structure
 
