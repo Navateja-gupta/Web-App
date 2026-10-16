@@ -58,6 +58,18 @@ Emails are queued in the database and sent in the background (retried up to 5 ti
 mail server never breaks the website. Users can switch emails off under **Account → Notifications**.
 Gmail allows roughly 500 emails a day; use a transactional email service when you outgrow that.
 
+## Demo data
+
+To see the marketplace populated while testing, from `Web-App\backend` with the venv active:
+
+```powershell
+python -m app.scripts.seed_demo            # adds 8 "[Demo]" vendors across the categories
+python -m app.scripts.seed_demo --remove   # removes them (deactivates any with enquiries/bookings)
+```
+
+Demo vendors are clearly labelled: "[Demo]" names, "not a real business" descriptions, `example.com`
+emails, `+9190000000xx` phone numbers and generated "DEMO PHOTO" images. Remove them before launch.
+
 ## Running every day
 
 Two PowerShell windows:
