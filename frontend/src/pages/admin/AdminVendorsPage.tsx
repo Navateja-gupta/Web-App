@@ -7,6 +7,7 @@ import Spinner from "../../components/Spinner";
 import { ApprovalBadge, Badge } from "../../components/StatusBadge";
 import { api, getErrorMessage } from "../../lib/api";
 import { APPROVAL_LABEL, formatDate } from "../../lib/format";
+import { useDebounced } from "../../lib/useDebounced";
 import type { ApprovalStatus, Category, Page, VendorAdmin } from "../../types";
 
 const PAGE_SIZE = 20;
@@ -65,8 +66,27 @@ export default function AdminVendorsPage() {
     void load();
   }, [load]);
 
+  // Search applies after a short pause in typing (replace: no Back-button entry per keystroke).
+  const debouncedSearch = useDebounced(searchDraft.trim());
+  useEffect(() => {
+    if (debouncedSearch !== search) {
+      const next = new URLSearchParams(params);
+      if (debouncedSearch) next.set("q", debouncedSearch);
+      else next.delete("q");
+      next.delete("page");
+      setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  // Keep the box in sync if the URL changes from outside (back/forward).
+  useEffect(() => {
+    if (search !== searchDraft.trim()) setSearchDraft(search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   function submitSearch(e: FormEvent) {
-    e.preventDefault();
+    e.preventDefault(); // Enter applies immediately
     update({ q: searchDraft.trim() });
   }
 
@@ -104,6 +124,7 @@ export default function AdminVendorsPage() {
         <label className="flex-1 text-sm">
           <span className="block font-medium text-stone-700">Search</span>
           <input
+            type="search"
             className="mt-1 w-full min-w-48 rounded-lg border border-stone-300 px-3 py-2"
             placeholder="Business name, location, phone or email"
             maxLength={100}
@@ -123,7 +144,18 @@ export default function AdminVendorsPage() {
             ))}
           </select>
         </label>
-        <Button type="submit">Search</Button>
+        {(searchDraft || categoryId) && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setSearchDraft("");
+              update({ q: "", category: "" });
+            }}
+          >
+            Clear
+          </Button>
+        )}
       </form>
 
       {error && <Alert kind="error">{error}</Alert>}

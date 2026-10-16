@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useAuth } from "../../auth/AuthContext";
 import Alert from "../../components/Alert";
 import Button from "../../components/Button";
 import Spinner from "../../components/Spinner";
 import { api, getErrorMessage } from "../../lib/api";
+import { useDebounced } from "../../lib/useDebounced";
 import type { Page, Role, User } from "../../types";
 
 const PAGE_SIZE = 20;
@@ -17,8 +18,10 @@ interface Filters {
 
 export default function AdminUsersPage() {
   const { user: me } = useAuth();
-  const [draft, setDraft] = useState<Filters>({ search: "", role: "", status: "" });
-  const [filters, setFilters] = useState<Filters>(draft);
+  // Dropdowns apply immediately; the search box applies after a short pause in typing.
+  const [form, setForm] = useState<Filters>({ search: "", role: "", status: "" });
+  const debouncedSearch = useDebounced(form.search.trim());
+  const filters = useMemo(() => ({ ...form, search: debouncedSearch }), [form.role, form.status, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page<User> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,11 +56,10 @@ export default function AdminUsersPage() {
     void load();
   }, [load]);
 
-  function applyFilters(e: FormEvent) {
-    e.preventDefault();
+  // Any filter change starts again from page 1.
+  useEffect(() => {
     setPage(1);
-    setFilters(draft);
-  }
+  }, [filters]);
 
   async function createResetLink(target: User) {
     if (!window.confirm(`Create a one-time password reset link for ${target.full_name}?`)) return;
@@ -111,23 +113,24 @@ export default function AdminUsersPage() {
         <p className="mt-1 text-stone-600">Customers, vendors and administrators registered on the platform.</p>
       </div>
 
-      <form onSubmit={applyFilters} className="flex flex-wrap items-end gap-3 rounded-xl border border-maroon-100 bg-white p-4">
+      <form onSubmit={(e: FormEvent) => e.preventDefault()} className="flex flex-wrap items-end gap-3 rounded-xl border border-maroon-100 bg-white p-4">
         <label className="flex-1 text-sm">
           <span className="block font-medium text-stone-700">Search</span>
           <input
+            type="search"
             className="mt-1 w-full min-w-48 rounded-lg border border-stone-300 px-3 py-2"
             placeholder="Name, email or phone"
-            value={draft.search}
+            value={form.search}
             maxLength={100}
-            onChange={(e) => setDraft({ ...draft, search: e.target.value })}
+            onChange={(e) => setForm({ ...form, search: e.target.value })}
           />
         </label>
         <label className="text-sm">
           <span className="block font-medium text-stone-700">Role</span>
           <select
             className="mt-1 rounded-lg border border-stone-300 px-3 py-2"
-            value={draft.role}
-            onChange={(e) => setDraft({ ...draft, role: e.target.value as Filters["role"] })}
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value as Filters["role"] })}
           >
             <option value="">All roles</option>
             <option value="customer">Customer</option>
@@ -139,15 +142,19 @@ export default function AdminUsersPage() {
           <span className="block font-medium text-stone-700">Status</span>
           <select
             className="mt-1 rounded-lg border border-stone-300 px-3 py-2"
-            value={draft.status}
-            onChange={(e) => setDraft({ ...draft, status: e.target.value as Filters["status"] })}
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value as Filters["status"] })}
           >
             <option value="">Any status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
         </label>
-        <Button type="submit">Apply</Button>
+        {(form.search || form.role || form.status) && (
+          <Button type="button" variant="secondary" onClick={() => setForm({ search: "", role: "", status: "" })}>
+            Clear
+          </Button>
+        )}
       </form>
 
       {error && <Alert kind="error">{error}</Alert>}

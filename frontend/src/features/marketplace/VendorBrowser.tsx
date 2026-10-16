@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import Alert from "../../components/Alert";
@@ -11,8 +11,12 @@ import { todayISO } from "../../lib/format";
 import type { Category, Page, VendorPublic } from "../../types";
 
 const PAGE_SIZE = 12;
+const TYPING_DELAY_MS = 450;
 const FILTER_KEYS = ["q", "category", "location", "min_price", "max_price", "date"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
+type Filters = Record<FilterKey, string>;
+// Fields the user types into; these are applied after a short pause instead of on every keystroke.
+const TYPED_KEYS: FilterKey[] = ["q", "min_price", "max_price"];
 
 const SORTS = [
   { value: "newest", label: "Newest" },
@@ -24,9 +28,21 @@ const SORTS = [
 
 const inputClass = "mt-1 block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm";
 
+function filtersFrom(params: URLSearchParams): Filters {
+  return Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""])) as Filters;
+}
+
+function priceRangeError(f: Filters): string | null {
+  const min = f.min_price.trim();
+  const max = f.max_price.trim();
+  if ((min && !(Number(min) >= 0)) || (max && !(Number(max) >= 0))) return "Enter prices as positive numbers.";
+  if (min && max && Number(min) > Number(max)) return "Minimum price is more than the maximum.";
+  return null;
+}
+
 /**
- * Server-side search: every filter, sort and page is sent to the API and kept in the URL
- * so results can be shared and the back button works.
+ * Server-side search that updates as filters change. Every filter, sort and page is kept
+ * in the URL so results can be shared and the back button works.
  */
 export default function VendorBrowser({ fixedCategory }: { fixedCategory?: string }) {
   const [params, setParams] = useSearchParams();
@@ -36,17 +52,19 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // What the form shows. Typed fields may run ahead of the URL until the user pauses.
+  const [form, setForm] = useState<Filters>(() => filtersFrom(params));
+  const typingTimer = useRef<number | undefined>(undefined);
+
   const read = (key: FilterKey) => params.get(key) ?? "";
-  const [draft, setDraft] = useState<Record<FilterKey, string>>(() =>
-    Object.fromEntries(FILTER_KEYS.map((k) => [k, read(k)])) as Record<FilterKey, string>,
-  );
   const sort = params.get("sort") ?? "newest";
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
   const category = fixedCategory ?? read("category");
+  const rangeError = priceRangeError(form);
 
-  // Keep the form in sync when the URL changes (back/forward, links).
+  // Keep the form in sync when the URL changes from outside (back/forward, links, Clear).
   useEffect(() => {
-    setDraft(Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""])) as Record<FilterKey, string>);
+    setForm(filtersFrom(params));
   }, [params]);
 
   useEffect(() => {
@@ -82,38 +100,80 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey, category]);
 
-  function apply(changes: Record<string, string>, resetPage = true) {
-    const next = new URLSearchParams(params);
-    Object.entries(changes).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
-    if (resetPage) next.delete("page");
-    setParams(next);
+  /** Write filters to the URL, which triggers the search. Always resets to page 1. */
+  const commit = useCallback(
+    (filters: Filters, { replace }: { replace: boolean }) => {
+      if (priceRangeError(filters)) return; // keep showing the last valid results
+      window.clearTimeout(typingTimer.current);
+      const next = new URLSearchParams(params);
+      FILTER_KEYS.forEach((k) => {
+        const value = filters[k].trim();
+        if (value) next.set(k, value);
+        else next.delete(k);
+      });
+      next.delete("page");
+      if (next.toString() !== params.toString()) setParams(next, { replace });
+    },
+    [params, setParams],
+  );
+
+  useEffect(() => () => window.clearTimeout(typingTimer.current), []);
+
+  /** Dropdowns and the date picker apply immediately. */
+  function choose(key: FilterKey, value: string) {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    commit(next, { replace: false });
+  }
+
+  /** Typed fields apply after a short pause (replace: no Back-button entry per keystroke). */
+  function type(key: FilterKey, value: string) {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    window.clearTimeout(typingTimer.current);
+    typingTimer.current = window.setTimeout(() => commit(next, { replace: true }), TYPING_DELAY_MS);
   }
 
   function submit(e: FormEvent) {
-    e.preventDefault();
-    apply(Object.fromEntries(FILTER_KEYS.map((k) => [k, draft[k].trim()])));
+    e.preventDefault(); // Enter applies typed fields right away
+    commit(form, { replace: false });
+  }
+
+  function changeSort(value: string) {
+    const next = new URLSearchParams(params);
+    next.set("sort", value);
+    next.delete("page");
+    setParams(next);
   }
 
   function clearAll() {
+    window.clearTimeout(typingTimer.current);
     const next = new URLSearchParams();
     if (params.get("sort")) next.set("sort", params.get("sort")!);
     setParams(next);
   }
 
-  const activeFilters = FILTER_KEYS.filter((k) => (fixedCategory && k === "category" ? false : !!read(k))).length;
-  const set = (key: FilterKey) => (e: { target: { value: string } }) => setDraft((d) => ({ ...d, [key]: e.target.value }));
+  const activeFilters = FILTER_KEYS.filter((k) => (fixedCategory && k === "category" ? false : !!form[k].trim())).length;
+  const typingPending = TYPED_KEYS.some((k) => form[k].trim() !== read(k)) && !rangeError;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
       <form onSubmit={submit} className="h-fit space-y-4 rounded-xl border border-maroon-100 bg-white p-4 shadow-sm" aria-label="Filter vendors">
         <label className="block text-sm font-medium text-stone-700">
           Search
-          <input className={inputClass} value={draft.q} onChange={set("q")} placeholder="Name or service" maxLength={100} />
+          <input
+            type="search"
+            className={inputClass}
+            value={form.q}
+            onChange={(e) => type("q", e.target.value)}
+            placeholder="Name or service"
+            maxLength={100}
+          />
         </label>
         {!fixedCategory && (
           <label className="block text-sm font-medium text-stone-700">
             Category
-            <select className={inputClass} value={draft.category} onChange={set("category")}>
+            <select className={inputClass} value={form.category} onChange={(e) => choose("category", e.target.value)}>
               <option value="">All categories</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
@@ -125,9 +185,9 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
         )}
         <label className="block text-sm font-medium text-stone-700">
           Location
-          <select className={inputClass} value={draft.location} onChange={set("location")}>
+          <select className={inputClass} value={form.location} onChange={(e) => choose("location", e.target.value)}>
             <option value="">Any location</option>
-            {draft.location && !locations.includes(draft.location) && <option value={draft.location}>{draft.location}</option>}
+            {form.location && !locations.includes(form.location) && <option value={form.location}>{form.location}</option>}
             {locations.map((l) => (
               <option key={l} value={l}>
                 {l}
@@ -138,36 +198,57 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
         <fieldset>
           <legend className="text-sm font-medium text-stone-700">Starting price (₹)</legend>
           <div className="mt-1 grid grid-cols-2 gap-2">
-            <input className={inputClass.replace("mt-1 ", "")} type="number" min={0} placeholder="Min" aria-label="Minimum price" value={draft.min_price} onChange={set("min_price")} />
-            <input className={inputClass.replace("mt-1 ", "")} type="number" min={0} placeholder="Max" aria-label="Maximum price" value={draft.max_price} onChange={set("max_price")} />
+            <input
+              className={inputClass.replace("mt-1 ", "")}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="Min"
+              aria-label="Minimum price"
+              aria-invalid={rangeError ? true : undefined}
+              value={form.min_price}
+              onChange={(e) => type("min_price", e.target.value)}
+            />
+            <input
+              className={inputClass.replace("mt-1 ", "")}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="Max"
+              aria-label="Maximum price"
+              aria-invalid={rangeError ? true : undefined}
+              value={form.max_price}
+              onChange={(e) => type("max_price", e.target.value)}
+            />
           </div>
-          <p className="mt-1 text-xs text-stone-500">Vendors without published prices are hidden when a price filter is used.</p>
+          {rangeError ? (
+            <p className="mt-1 text-xs text-red-700">{rangeError}</p>
+          ) : (
+            <p className="mt-1 text-xs text-stone-500">Vendors without published prices are hidden when a price filter is used.</p>
+          )}
         </fieldset>
         <label className="block text-sm font-medium text-stone-700">
           Available on
-          <input className={inputClass} type="date" min={todayISO()} value={draft.date} onChange={set("date")} />
+          <input className={inputClass} type="date" min={todayISO()} value={form.date} onChange={(e) => choose("date", e.target.value)} />
           <span className="mt-1 block text-xs font-normal text-stone-500">Shows vendors who have marked this date as available.</span>
         </label>
-        <div className="flex gap-2">
-          <Button type="submit" className="flex-1">
-            Apply
+        {activeFilters > 0 && (
+          <Button type="button" variant="secondary" className="w-full" onClick={clearAll}>
+            Clear filters
           </Button>
-          {activeFilters > 0 && (
-            <Button type="button" variant="secondary" onClick={clearAll}>
-              Clear
-            </Button>
-          )}
-        </div>
+        )}
+        {/* Hidden submit so pressing Enter in a text field applies immediately. */}
+        <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>
 
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-stone-600" aria-live="polite">
-            {data ? `${data.total} ${data.total === 1 ? "vendor" : "vendors"} found` : " "}
+            {loading || typingPending ? "Searching…" : data ? `${data.total} ${data.total === 1 ? "vendor" : "vendors"} found` : " "}
           </p>
           <label className="text-sm text-stone-700">
             Sort by{" "}
-            <select className="ml-1 rounded-lg border border-stone-300 bg-white px-2 py-1.5" value={sort} onChange={(e) => apply({ sort: e.target.value })}>
+            <select className="ml-1 rounded-lg border border-stone-300 bg-white px-2 py-1.5" value={sort} onChange={(e) => changeSort(e.target.value)}>
               {SORTS.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
@@ -196,7 +277,7 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
         ) : (
           data && (
             <>
-              <ul className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${loading ? "opacity-60" : ""}`}>
+              <ul className={`grid gap-4 transition-opacity sm:grid-cols-2 xl:grid-cols-3 ${loading ? "opacity-60" : ""}`}>
                 {data.items.map((v) => (
                   <li key={v.id}>
                     <VendorCard vendor={v} />
@@ -209,7 +290,9 @@ export default function VendorBrowser({ fixedCategory }: { fixedCategory?: strin
                 total={data.total}
                 noun="vendors"
                 onPage={(p) => {
-                  apply({ page: String(p) }, false);
+                  const next = new URLSearchParams(params);
+                  next.set("page", String(p));
+                  setParams(next);
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               />

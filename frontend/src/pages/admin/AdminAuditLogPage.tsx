@@ -5,6 +5,7 @@ import Button from "../../components/Button";
 import Pagination from "../../components/Pagination";
 import Spinner from "../../components/Spinner";
 import { api, getErrorMessage } from "../../lib/api";
+import { useDebounced } from "../../lib/useDebounced";
 import type { Page } from "../../types";
 
 interface AuditEntry {
@@ -20,26 +21,30 @@ interface AuditEntry {
 const ENTITY_TYPES = ["", "vendor", "category", "booking", "quotation", "quotation_request", "package", "portfolio", "review", "report", "user"];
 
 export default function AdminAuditLogPage() {
-  const [filters, setFilters] = useState({ action: "", entity_type: "" });
-  const [draft, setDraft] = useState(filters);
+  // The record type applies immediately; the action text applies after a short pause in typing.
+  const [draft, setDraft] = useState({ action: "", entity_type: "" });
+  const action = useDebounced(draft.action.trim());
+  const entityType = draft.entity_type;
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page<AuditEntry> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setPage(1);
+  }, [action, entityType]);
+
+  useEffect(() => {
+    let cancelled = false;
     api
       .get<Page<AuditEntry>>("/admin/audit-logs", {
-        params: { action: filters.action || undefined, entity_type: filters.entity_type || undefined, page, size: 50 },
+        params: { action: action || undefined, entity_type: entityType || undefined, page, size: 50 },
       })
-      .then((r) => setData(r.data))
-      .catch((err) => setError(getErrorMessage(err)));
-  }, [filters, page]);
-
-  function apply(e: FormEvent) {
-    e.preventDefault();
-    setPage(1);
-    setFilters({ action: draft.action.trim(), entity_type: draft.entity_type });
-  }
+      .then((r) => !cancelled && setData(r.data))
+      .catch((err) => !cancelled && setError(getErrorMessage(err)));
+    return () => {
+      cancelled = true;
+    };
+  }, [action, entityType, page]);
 
   return (
     <section className="space-y-5">
@@ -47,10 +52,11 @@ export default function AdminAuditLogPage() {
         <h1 className="font-display text-3xl font-semibold text-maroon-800">Audit log</h1>
         <p className="text-stone-600">Who did what, and when. Passwords and tokens are never recorded.</p>
       </div>
-      <form onSubmit={apply} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={(e: FormEvent) => e.preventDefault()} className="flex flex-wrap items-end gap-3">
         <label className="text-sm">
           <span className="block font-medium text-stone-700">Action starts with</span>
           <input
+            type="search"
             className="mt-1 rounded-lg border border-stone-300 px-3 py-2"
             placeholder="e.g. vendor. or booking.confirmed"
             maxLength={80}
@@ -68,7 +74,11 @@ export default function AdminAuditLogPage() {
             ))}
           </select>
         </label>
-        <Button type="submit">Filter</Button>
+        {(draft.action || draft.entity_type) && (
+          <Button type="button" variant="secondary" onClick={() => setDraft({ action: "", entity_type: "" })}>
+            Clear
+          </Button>
+        )}
       </form>
       {error && <Alert kind="error">{error}</Alert>}
       {!data ? (
